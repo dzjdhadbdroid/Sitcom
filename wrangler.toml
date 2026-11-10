@@ -1,0 +1,20 @@
+name = "serie-app"
+main = "src/worker/index.ts"
+compatibility_date = "2025-01-01"
+
+# Le frontend compilé (dossier dist) est servi par le même Worker : une seule origine, cookies de session de première partie.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "serie-db"
+# À remplacer par l'identifiant fourni par « wrangler d1 create serie-db » (cet identifiant n'est pas un secret).
+database_id = "REMPLACER_PAR_L_IDENTIFIANT_D1"
+
+# Variables NON secrètes uniquement. Les secrets se définissent avec « wrangler secret put ».
+[vars]
+OWNER_EMAIL = "REMPLACER_PAR_VOTRE_ADRESSE_GOOGLE"
