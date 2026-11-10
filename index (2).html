@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atelier de série</title>
+<style>
+:root{--bg:#faf8f5;--panel:#f1ede6;--ink:#2b2a28;--mute:#8a847a;--line:#ddd6ca;--accent:#9c4a2f;--hover:#e8e2d7}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1b19;--panel:#252320;--ink:#e8e4dc;--mute:#8f897e;--line:#3a3732;--accent:#d98a66;--hover:#302d29}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;display:flex}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{background:var(--hover)}
+input,select,textarea{font:inherit;color:inherit;background:transparent;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+aside{width:310px;min-width:240px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100%}
+.brand{padding:14px 14px 6px}
+.brand input{width:100%;font-size:17px;font-weight:600;border-color:transparent;padding:4px 6px}
+.brand input:hover{border-color:var(--line)}
+.tools{display:flex;gap:6px;padding:6px 14px 10px;flex-wrap:wrap}
+.tools button{font-size:13px;padding:3px 8px}
+#search{margin:0 14px 8px;width:calc(100% - 28px)}
+#tree{flex:1;overflow:auto;padding:0 8px 14px}
+.sect{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);padding:12px 8px 4px;display:flex;justify-content:space-between;align-items:center}
+.season{margin-bottom:4px}
+.row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer}
+.row:hover{background:var(--hover)}
+.row.sel{background:var(--accent);color:#fff}
+.row.sel .dot{box-shadow:0 0 0 1.5px #fff}
+.row .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.season>.row.head{font-weight:600}
+.row .acts{display:none;gap:2px}
+.row:hover .acts{display:flex}
+.acts span{padding:0 4px;opacity:.7;border-radius:4px}
+.acts span:hover{opacity:1;background:rgba(0,0,0,.1)}
+.eps{margin-left:14px;border-left:1px solid var(--line);padding-left:4px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--mute)}
+.s-idee{background:#b7b0a3}.s-plan{background:#d9a441}.s-jet{background:#4f8fc0}.s-reecriture{background:#c0642f}.s-fini{background:#4c9a5a}
+.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
+.count{font-size:12px;opacity:.65}
+main{flex:1;display:flex;flex-direction:column;height:100%;min-width:0}
+#empty{margin:auto;color:var(--mute);text-align:center;padding:20px}
+#ed{display:none;flex-direction:column;height:100%;padding:18px 28px 10px;gap:10px;max-width:860px;width:100%;margin:0 auto}
+.top{display:flex;gap:10px}
+#etitle{flex:1;font-size:22px;font-weight:600;border-color:transparent;padding:4px 6px}
+#etitle:hover{border-color:var(--line)}
+#syn{resize:vertical;min-height:54px;max-height:140px;font-size:14px}
+#body{flex:1;resize:none;font-family:Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;padding:14px 16px}
+#body.mono{font-family:'Courier New',Courier,monospace;font-size:15px}
+.foot{display:flex;gap:14px;align-items:center;color:var(--mute);font-size:13px;flex-wrap:wrap}
+.foot .sp{flex:1}
+#banner{display:none;background:var(--accent);color:#fff;padding:6px 14px;font-size:13px}
+#banner a{color:#fff;text-decoration:underline;cursor:pointer}
+.hit .snip{font-size:12px;color:var(--mute);white-space:normal}
+.row.sel .snip{color:#fff}
+@media(max-width:720px){body{flex-direction:column}aside{width:100%;height:40%;border-right:0;border-bottom:1px solid var(--line)}#ed{padding:12px}}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><input id="ptitle" aria-label="Titre de la série" placeholder="Titre de la série"></div>
+  <div class="tools">
+    <button id="addSeason">+ Saison</button>
+    <button id="addBible">+ Fiche</button>
+    <button id="exportJson" title="Sauvegarde complète du projet">Sauvegarder</button>
+    <button id="importBtn">Importer</button>
+    <button id="exportMd" title="Tout le projet en un fichier texte">Export .md</button>
+    <input type="file" id="importFile" accept=".json" hidden>
+  </div>
+  <input id="search" type="search" placeholder="Rechercher dans le projet…">
+  <div id="tree"></div>
+</aside>
+<main>
+  <div id="banner">Pensez à sauvegarder : vos textes sont stockés dans ce navigateur. <a id="bannerGo">Sauvegarder maintenant</a></div>
+  <div id="empty">Créez une saison, puis un épisode,<br>ou choisissez-en un dans la colonne de gauche.</div>
+  <div id="ed">
+    <div class="top">
+      <input id="etitle" placeholder="Titre">
+      <select id="estatus" aria-label="Statut">
+        <option value="idee">Idée</option>
+        <option value="plan">Plan</option>
+        <option value="jet">Premier jet</option>
+        <option value="reecriture">Réécriture</option>
+        <option value="fini">Terminé</option>
+      </select>
+    </div>
+    <textarea id="syn" placeholder="Synopsis / notes de l'épisode…"></textarea>
+    <textarea id="body" placeholder="Écrivez ici…"></textarea>
+    <div class="foot">
+      <span id="wc">0 mot</span>
+      <span id="saved"></span>
+      <span class="sp"></span>
+      <label><input type="checkbox" id="mono" style="vertical-align:middle"> Police scénario</label>
+      <button id="exportOne">Exporter .txt</button>
+    </div>
+  </div>
+</main>
+<script>
+(function(){
+"use strict";
+var KEY="atelier-serie-v1";
+var STATUS={idee:"Idée",plan:"Plan",jet:"Premier jet",reecriture:"Réécriture",fini:"Terminé"};
+var $=function(id){return document.getElementById(id)};
+var uid=function(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3)};
+var words=function(t){var m=(t||"").trim().match(/\S+/g);return m?m.length:0};
+
+var state=load();
+var sel=state.sel||null; // {type:'ep'|'bible',id}
+var saveTimer=null;
+
+function fresh(){
+  return {title:"Ma série",seasons:[{id:uid(),title:"Saison 1",collapsed:false,episodes:[]}],bible:[],lastExport:0,mono:false,sel:null};
+}
+function load(){
+  try{var r=localStorage.getItem(KEY);if(r){var s=JSON.parse(r);if(s&&s.seasons)return s}}catch(e){}
+  return fresh();
+}
+function persist(){
+  state.sel=sel;
+  try{localStorage.setItem(KEY,JSON.stringify(state));$("saved").textContent="Enregistré "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+  catch(e){$("saved").textContent="⚠ Sauvegarde locale impossible, exportez votre projet"}
+}
+function save(){clearTimeout(saveTimer);$("saved").textContent="…";saveTimer=setTimeout(persist,400)}
+
+function findEp(id){
+  for(var i=0;i<state.seasons.length;i++){var s=state.seasons[i];
+    for(var j=0;j<s.episodes.length;j++)if(s.episodes[j].id===id)return {season:s,ep:s.episodes[j],si:i,ei:j}}
+  return null;
+}
+function findBible(id){for(var i=0;i<state.bible.length;i++)if(state.bible[i].id===id)return state.bible[i];return null}
+function current(){
+  if(!sel)return null;
+  if(sel.type==="ep"){var f=findEp(sel.id);return f?{kind:"ep",obj:f.ep,season:f.season}:null}
+  var b=findBible(sel.id);return b?{kind:"bible",obj:b}:null;
+}
+
+/* ---------- Sidebar ---------- */
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+
+function renderTree(){
+  var tree=$("tree");tree.innerHTML="";
+  var q=$("search").value.trim().toLowerCase();
+  if(q){renderSearch(tree,q);return}
+
+  state.seasons.forEach(function(s){
+    var box=el("div","season");
+    var head=el("div","row head");
+    head.draggable=true;
+    var arrow=el("span","",s.collapsed?"▸":"▾");
+    var t=el("span","t",s.title);
+    var c=el("span","count",String(s.episodes.length));
+    var acts=el("span","acts");
+    var add=el("span","","+");add.title="Ajouter un épisode";
+    var ren=el("span","","✎");ren.title="Renommer";
+    var del=el("span","","✕");del.title="Supprimer la saison";
+    acts.append(add,ren,del);
+    head.append(arrow,t,c,acts);
+    head.onclick=function(){s.collapsed=!s.collapsed;save();renderTree()};
+    add.onclick=function(e){e.stopPropagation();addEpisode(s)};
+    ren.onclick=function(e){e.stopPropagation();var n=prompt("Nom de la saison",s.title);if(n&&n.trim()){s.title=n.trim();save();renderTree()}};
+    del.onclick=function(e){e.stopPropagation();
+      if(confirm("Supprimer « "+s.title+" » et ses "+s.episodes.length+" épisode(s) ?")){
+        if(sel&&sel.type==="ep"&&s.episodes.some(function(x){return x.id===sel.id}))sel=null;
+        state.seasons=state.seasons.filter(function(x){return x!==s});save();renderAll()}};
+    head.addEventListener("dragstart",function(e){e.dataTransfer.setData("text/plain","se:"+s.id);e.dataTransfer.effectAllowed="move"});
+    wireDrop(head,function(data){
+      if(data.indexOf("se:")===0){moveSeason(data.slice(3),s.id)}
+      else if(data.indexOf("ep:")===0){moveEpisode(data.slice(3),s.id,null)}
+    });
+    box.appendChild(head);
+
+    if(!s.collapsed){
+      var eps=el("div","eps");
+      s.episodes.forEach(function(ep,i){
+        var r=el("div","row"+(sel&&sel.type==="ep"&&sel.id===ep.id?" sel":""));
+        r.draggable=true;
+        var d=el("span","dot s-"+ep.status);d.title=STATUS[ep.status];
+        var label=el("span","t","É"+(i+1)+" · "+(ep.title||"Sans titre"));
+        var a=el("span","acts");var x=el("span","","✕");x.title="Supprimer";a.appendChild(x);
+        r.append(d,label,a);
+        r.onclick=function(){select({type:"ep",id:ep.id})};
+        x.onclick=function(e){e.stopPropagation();
+          if(confirm("Supprimer l'épisode « "+(ep.title||"Sans titre")+" » ?")){
+            s.episodes=s.episodes.filter(function(y){return y!==ep});
+            if(sel&&sel.id===ep.id)sel=null;save();renderAll()}};
+        r.addEventListener("dragstart",function(e){e.stopPropagation();e.dataTransfer.setData("text/plain","ep:"+ep.id);e.dataTransfer.effectAllowed="move"});
+        wireDrop(r,function(data){if(data.indexOf("ep:")===0)moveEpisode(data.slice(3),s.id,ep.id)});
+        eps.appendChild(r);
+      });
+      box.appendChild(eps);
+    }
+    tree.appendChild(box);
+  });
+
+  var sb=el("div","sect");sb.appendChild(el("span","","Bible de la série"));tree.appendChild(sb);
+  state.bible.forEach(function(b){
+    var r=el("div","row"+(sel&&sel.type==="bible"&&sel.id===b.id?" sel":""));
+    var a=el("span","acts");var x=el("span","","✕");a.appendChild(x);
+    r.append(el("span","","📄"),el("span","t",b.title||"Sans titre"),a);
+    r.onclick=function(){select({type:"bible",id:b.id})};
+    x.onclick=function(e){e.stopPropagation();
+      if(confirm("Supprimer la fiche « "+(b.title||"Sans titre")+" » ?")){
+        state.bible=state.bible.filter(function(y){return y!==b});
+        if(sel&&sel.id===b.id)sel=null;save();renderAll()}};
+    tree.appendChild(r);
+  });
+}
+
+function renderSearch(tree,q){
+  var n=0;
+  function hit(title,content,sel_,prefix){
+    var t=(title||"").toLowerCase(),c=(content||"").toLowerCase();
+    var ti=t.indexOf(q),ci=c.indexOf(q);
+    if(ti<0&&ci<0)return;
+    n++;
+    var r=el("div","row hit"+(sel&&sel.id===sel_.id?" sel":""));
+    var box=el("div","t");box.style.whiteSpace="normal";
+    box.appendChild(el("div","",prefix+(title||"Sans titre")));
+    if(ci>=0){var st=Math.max(0,ci-30);box.appendChild(el("div","snip",(st>0?"…":"")+content.slice(st,ci+q.length+50).replace(/\s+/g," ")+"…"))}
+    r.appendChild(box);
+    r.onclick=function(){select(sel_)};
+    tree.appendChild(r);
+  }
+  state.seasons.forEach(function(s){s.episodes.forEach(function(ep,i){
+    hit(ep.title,(ep.synopsis||"")+"\n"+(ep.content||""),{type:"ep",id:ep.id},s.title+" · É"+(i+1)+" · ")})});
+  state.bible.forEach(function(b){hit(b.title,b.content,{type:"bible",id:b.id},"Fiche · ")});
+  if(!n)tree.appendChild(el("div","sect","Aucun résultat"));
+}
+
+function wireDrop(node,handler){
+  node.addEventListener("dragover",function(e){e.preventDefault();e.stopPropagation();node.classList.add("dragover")});
+  node.addEventListener("dragleave",function(){node.classList.remove("dragover")});
+  node.addEventListener("drop",function(e){e.preventDefault();e.stopPropagation();node.classList.remove("dragover");
+    var d=e.dataTransfer.getData("text/plain");if(d)handler(d)});
+}
+function moveSeason(id,beforeId){
+  if(id===beforeId)return;
+  var i=state.seasons.findIndex(function(s){return s.id===id});if(i<0)return;
+  var s=state.seasons.splice(i,1)[0];
+  var j=state.seasons.findIndex(function(x){return x.id===beforeId});
+  state.seasons.splice(j<0?state.seasons.length:j,0,s);save();renderTree();
+}
+function moveEpisode(id,toSeasonId,beforeEpId){
+  if(id===beforeEpId)return;
+  var f=findEp(id);if(!f)return;
+  f.season.episodes.splice(f.ei,1);
+  var dest=state.seasons.find(function(s){return s.id===toSeasonId});
+  var j=beforeEpId?dest.episodes.findIndex(function(x){return x.id===beforeEpId}):-1;
+  dest.episodes.splice(j<0?dest.episodes.length:j,0,f.ep);
+  dest.collapsed=false;save();renderTree();
+}
+
+/* ---------- Actions ---------- */
+function addSeason(){
+  var n=prompt("Nom de la saison","Saison "+(state.seasons.length+1));
+  if(!n||!n.trim())return;
+  state.seasons.push({id:uid(),title:n.trim(),collapsed:false,episodes:[]});save();renderTree();
+}
+function addEpisode(s){
+  var ep={id:uid(),title:"Épisode "+(s.episodes.length+1),status:"idee",synopsis:"",content:"",updated:Date.now()};
+  s.episodes.push(ep);s.collapsed=false;sel={type:"ep",id:ep.id};save();renderAll();$("etitle").select();
+}
+function addBible(){
+  var n=prompt("Titre de la fiche (ex. Personnage : Camille, Lieu : le phare, Arc de la saison 1…)");
+  if(!n||!n.trim())return;
+  var b={id:uid(),title:n.trim(),content:""};state.bible.push(b);sel={type:"bible",id:b.id};save();renderAll();$("body").focus();
+}
+function select(s){sel=s;save();renderAll()}
+
+/* ---------- Editor ---------- */
+function renderEditor(){
+  var c=current();
+  $("empty").style.display=c?"none":"block";
+  $("ed").style.display=c?"flex":"none";
+  if(!c)return;
+  var isEp=c.kind==="ep";
+  $("etitle").value=c.obj.title||"";
+  $("estatus").style.display=isEp?"":"none";
+  $("syn").style.display=isEp?"":"none";
+  $("exportOne").style.display=isEp?"":"none";
+  if(isEp){$("estatus").value=c.obj.status;$("syn").value=c.obj.synopsis||""}
+  $("body").value=c.obj.content||"";
+  $("body").placeholder=isEp?"Écrivez ici…":"Décrivez le personnage, le lieu, l'arc…";
+  updateWc();
+}
+function updateWc(){
+  var n=words($("body").value);
+  $("wc").textContent=n+" mot"+(n>1?"s":"");
+}
+function touch(c){if(c.kind==="ep")c.obj.updated=Date.now()}
+
+$("etitle").addEventListener("input",function(){var c=current();if(!c)return;c.obj.title=this.value;touch(c);save();renderTree()});
+$("estatus").addEventListener("change",function(){var c=current();if(!c)return;c.obj.status=this.value;touch(c);save();renderTree()});
+$("syn").addEventListener("input",function(){var c=current();if(!c)return;c.obj.synopsis=this.value;touch(c);save()});
+$("body").addEventListener("input",function(){var c=current();if(!c)return;c.obj.content=this.value;touch(c);updateWc();save()});
+$("ptitle").addEventListener("input",function(){state.title=this.value;document.title=(this.value||"Atelier de série");save()});
+$("mono").addEventListener("change",function(){state.mono=this.checked;$("body").classList.toggle("mono",this.checked);save()});
+$("search").addEventListener("input",renderTree);
+$("addSeason").onclick=addSeason;
+$("addBible").onclick=addBible;
+window.addEventListener("beforeunload",function(){clearTimeout(saveTimer);persist()});
+
+/* ---------- Export / Import ---------- */
+function download(name,text,type){
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type:type||"text/plain;charset=utf-8"}));
+  a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);
+}
+var slug=function(s){return (s||"serie").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"serie"};
+function stamp(){return new Date().toISOString().slice(0,10)}
+function backup(){
+  state.lastExport=Date.now();state.sel=sel;persist();
+  download(slug(state.title)+"-sauvegarde-"+stamp()+".json",JSON.stringify(state,null,2),"application/json");
+  checkBanner();
+}
+$("exportJson").onclick=backup;
+$("bannerGo").onclick=backup;
+$("importBtn").onclick=function(){$("importFile").click()};
+$("importFile").addEventListener("change",function(){
+  var f=this.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var d=JSON.parse(r.result);
+      if(!d||!Array.isArray(d.seasons))throw new Error("format");
+      if(!confirm("Remplacer le projet actuel par « "+(d.title||"sans titre")+" » ?"))return;
+      state=d;state.bible=state.bible||[];sel=null;persist();init();
+    }catch(e){alert("Ce fichier n'est pas une sauvegarde valide.")}
+  };
+  r.readAsText(f);this.value="";
+});
+$("exportOne").onclick=function(){
+  var c=current();if(!c||c.kind!=="ep")return;
+  var txt=c.obj.title+"\n"+(c.obj.synopsis?"\n"+c.obj.synopsis+"\n":"")+"\n"+(c.obj.content||"");
+  download(slug(c.season.title)+"-"+slug(c.obj.title)+".txt",txt);
+};
+$("exportMd").onclick=function(){
+  var out="# "+state.title+"\n\n";
+  state.seasons.forEach(function(s){
+    out+="## "+s.title+"\n\n";
+    s.episodes.forEach(function(ep,i){
+      out+="### É"+(i+1)+" — "+(ep.title||"Sans titre")+" ("+STATUS[ep.status]+")\n\n";
+      if(ep.synopsis)out+="> "+ep.synopsis.replace(/\n/g,"\n> ")+"\n\n";
+      out+=(ep.content||"")+"\n\n";
+    });
+  });
+  if(state.bible.length){out+="## Bible de la série\n\n";state.bible.forEach(function(b){out+="### "+b.title+"\n\n"+(b.content||"")+"\n\n"})}
+  download(slug(state.title)+"-"+stamp()+".md",out);
+};
+function checkBanner(){
+  var has=state.seasons.some(function(s){return s.episodes.some(function(e){return e.content})});
+  var old=!state.lastExport||Date.now()-state.lastExport>7*864e5;
+  $("banner").style.display=has&&old?"block":"none";
+}
+
+/* ---------- Init ---------- */
+function renderAll(){renderTree();renderEditor()}
+function init(){
+  $("ptitle").value=state.title||"";
+  document.title=state.title||"Atelier de série";
+  $("mono").checked=!!state.mono;$("body").classList.toggle("mono",!!state.mono);
+  if(sel&&!current())sel=null;
+  renderAll();checkBanner();
+}
+init();
+})();
+</script>
+</body>
+</html>
