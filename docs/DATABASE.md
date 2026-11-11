@@ -15,3 +15,6 @@ Migration : `migrations/0001_init.sql`. Dates en ISO 8601 UTC. Les tables de con
 | `notifications` | Notifications dans l'application. |
 
 Les identifiants sont des UUID, jamais des numéros affichés.
+
+## Phase 3 : migration `0002_series_profile.sql`
+Colonnes ajoutées à `series` : `genre`, `format`, `summary`, `planned_seasons`, `avg_duration_min`, `audience`, `inspirations`, `notes`, `accent_color` (`#rrggbb`), `updated_at`. Le journal d'activité conserve les noms des champs modifiés, jamais leur contenu.

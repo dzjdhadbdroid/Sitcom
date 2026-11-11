@@ -3,7 +3,9 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { authorizeLogin, type GoogleProfile } from '../lib/auth.ts';
 import { fromBase64Url, randomToken, toBase64Url } from '../lib/crypto.ts';
 import { cancelInvitation, createInvitation, listPendingInvitations } from '../lib/invitations.ts';
+import { getDashboard } from '../lib/dashboard.ts';
 import { removeMember, setGrant, setRole } from '../lib/members.ts';
+import { getSeries, updateSeries } from '../lib/series.ts';
 import { createSession, getSessionUser, revokeSession, SESSION_TTL_DAYS, type SessionUser } from '../lib/sessions.ts';
 import type { DB } from '../lib/db.ts';
 
@@ -135,6 +137,23 @@ app.use('/api/*', async (c, next) => {
 });
 
 app.get('/api/me', (c) => c.json(c.get('user')));
+
+app.get('/api/series', async (c) => {
+  const s = await getSeries(db(c.env), c.get('user').userId);
+  return s ? c.json(s) : c.json({ erreur: 'forbidden' }, 403);
+});
+
+app.put('/api/series', async (c) => {
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body || typeof body !== 'object') return c.json({ erreur: 'invalid_body' }, 400);
+  const r = await updateSeries(db(c.env), c.get('user').userId, body);
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, r.reason === 'forbidden' ? 403 : 400);
+});
+
+app.get('/api/dashboard', async (c) => {
+  const d = await getDashboard(db(c.env), c.get('user').userId);
+  return d ? c.json(d) : c.json({ erreur: 'forbidden' }, 403);
+});
 
 const status = (reason: string) => (reason === 'forbidden' ? 403 : reason === 'not_found' ? 404 : 400);
 

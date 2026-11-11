@@ -2,7 +2,7 @@
 
 Application web privée (une seule série) qui complète Google Docs : organisation, consultation, relations entre éléments, collaboration. Coût d'exploitation visé : **0 €**.
 
-**État : phase 2 (infrastructure et authentification).** Voir `CHANGELOG.md`.
+**État : phase 3 (interface et navigation).** Voir `CHANGELOG.md`.
 
 ## Pile technique
 

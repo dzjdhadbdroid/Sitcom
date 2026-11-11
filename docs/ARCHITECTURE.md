@@ -26,3 +26,9 @@ Le Worker sert aussi le frontend : une seule origine, donc cookies de première 
 - **D1 plutôt que Supabase** : pas de mise en pause pour inactivité, pas de carte bancaire. Limite : 500 Mo par base (offre gratuite).
 - **Logique dans `src/lib` derrière une interface `DB` minimale** : elle se teste avec `node:sqlite` sans émulateur Cloudflare.
 - **Permissions sur un arbre de ressources** : voir `docs/SECURITY.md`.
+
+## Interface (phase 3)
+- Routage par ancre (`#/saisons`) : aucune configuration serveur nécessaire.
+- Navigation : menu fixe au-dessus de 1024 px, tiroir entre 640 et 1023 px, barre du bas (4 rubriques + « Plus ») sous 640 px.
+- Thème : variables CSS ; `data-theme` force clair/sombre, sinon suivi du système. Couleur de la série : `--accent`, texte de contraste calculé.
+- Contrôle visuel : `tests/visual/check.cjs` (Chrome, serveur simulé avec données fictives, 3 tailles × 2 thèmes). Il vérifie l'absence de débordement, la navigation, les formulaires et les droits ; il n'est pas lancé par la CI.
