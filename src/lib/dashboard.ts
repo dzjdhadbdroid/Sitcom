@@ -1,10 +1,12 @@
 import type { DB } from './db.ts';
-import { can } from './permissions.ts';
+import { can, readableIds } from './permissions.ts';
 
 export interface DashboardData {
   members: { total: number; admins: number; editors: number; readers: number };
   /** Réservé aux administrateurs (le journal d'activité est une donnée sensible). */
   recentActivity: { id: string; action: string; actorName: string | null; createdAt: string }[] | null;
+  /** Derniers documents Drive importés, modifiés récemment, filtrés selon les droits de l'utilisateur. */
+  recentDocuments: { id: string; title: string; category: string | null; modifiedTime: string | null; status: string }[];
 }
 
 /**
@@ -36,5 +38,14 @@ export async function getDashboard(db: DB, userId: string): Promise<DashboardDat
     recentActivity = results;
   }
 
-  return { members: counts ?? { total: 0, admins: 0, editors: 0, readers: 0 }, recentActivity };
+  const { results: docs } = await db
+    .prepare(
+      `SELECT id, title, category, modified_time AS modifiedTime, status FROM drive_documents
+       WHERE state = 'imported' ORDER BY COALESCE(modified_time, last_seen_at) DESC LIMIT 60`,
+    )
+    .all<{ id: string; title: string; category: string | null; modifiedTime: string | null; status: string }>();
+  const ok = await readableIds(db, userId, docs.map((d) => d.id));
+  const recentDocuments = docs.filter((d) => ok.has(d.id)).slice(0, 5);
+
+  return { members: counts ?? { total: 0, admins: 0, editors: 0, readers: 0 }, recentActivity, recentDocuments };
 }

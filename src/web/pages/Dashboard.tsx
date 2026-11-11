@@ -49,7 +49,16 @@ export function Dashboard({ me, series }: { me: Me; series: Series }) {
         </section>
         <section className="card" aria-labelledby="d-docs">
           <h2 id="d-docs">Derniers documents modifiés</h2>
-          <Empty>Aucun document synchronisé. La connexion à Google Drive arrive avec la phase 4.</Empty>
+          {!data ? <p className="muted">Chargement…</p> : data.recentDocuments.length === 0 ? <Empty>Aucun document importé pour l'instant.</Empty> : (
+            <ul className="activity">
+              {data.recentDocuments.map((d) => (
+                <li key={d.id}>
+                  <a href={`#/documents/${d.id}`}>{d.title}</a>
+                  <time dateTime={d.modifiedTime ?? ''}>{d.modifiedTime ? new Date(d.modifiedTime).toLocaleDateString('fr-FR') : ''}</time>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section className="card" aria-labelledby="d-team">
           <h2 id="d-team">Équipe</h2>

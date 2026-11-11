@@ -23,7 +23,16 @@ Cookie `__Host-session` (`HttpOnly`, `Secure`, `SameSite=Lax`), 7 jours. Seul le
 ## Protections HTTP
 Contrôle de l'en-tête `Origin` sur toute requête modifiante (CSRF), en-têtes de sécurité (CSP, HSTS, nosniff, anti-framing), erreurs sans détails internes, aucun jeton dans les journaux.
 
+## Google Drive (phase 4)
+- Portée `drive.readonly` uniquement ; seules des requêtes `GET` sont émises (test automatisé). Aucun bouton de téléchargement.
+- Jeton de renouvellement chiffré AES-GCM (`TOKEN_ENCRYPTION_KEY`, secret Cloudflare), jamais renvoyé au navigateur ni journalisé. Déconnexion = suppression + révocation chez Google.
+- Identifiants de dossiers/fichiers validés (`[A-Za-z0-9_-]`) avant d'entrer dans une requête Drive.
+- Lecteur : le HTML de Google Docs est assaini côté navigateur par **liste blanche** (balises et attributs autorisés ; scripts, styles, iframes, formulaires, SVG, gestionnaires d'événements, liens non `https`, images hors `*.googleusercontent.com` supprimés), puis affiché dans la page avec la CSP stricte (`script-src 'self'`). Vérifié sur un HTML piégé fictif.
+- Listes de documents filtrées côté serveur par `readableIds()` (même règle que `can()`).
+
 ## Limites connues (à traiter avant la finalisation)
 - **Limitation de débit non implémentée** : l'exigence « limiter les requêtes abusives » reste à faire (prévue en phase 14 au plus tard, via des règles Cloudflare gratuites ou un compteur en base).
 - Le contrôle de la signature du jeton d'identité n'est pas fait : il est obtenu directement de Google en HTTPS, ce que la documentation Google autorise, et ses revendications (émetteur, audience, expiration) sont vérifiées.
 - Confirmations côté interface : l'annulation d'invitation en demande une ; le retrait d'un membre et les changements de permissions n'ont pas encore d'écran (phase 13).
+- Drive : un document importé par une personne n'est suivi que tant que **sa** connexion Drive est active ; si elle se déconnecte, ses documents restent référencés mais ne se synchronisent plus (avertissement à prévoir en phase 9).
+- Les notifications sont créées en base mais l'écran de notifications arrive en phase 13.

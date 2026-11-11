@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { api, apiError, ROLE_LABEL, type Me, type Series } from '../api.ts';
 import { applyTheme, getThemePref, type ThemePref } from '../theme.ts';
 import { Invitations } from './Invitations.tsx';
+import { DriveSettings } from './DriveSettings.tsx';
 
 const TABS = [
   { id: 'serie', label: 'Série' },
   { id: 'affichage', label: 'Affichage' },
   { id: 'collaborateurs', label: 'Collaborateurs' },
+  { id: 'drive', label: 'Google Drive' },
   { id: 'compte', label: 'Compte' },
 ];
 
@@ -23,6 +25,7 @@ export function Settings({ me, series, route, onSeriesSaved }: Props) {
       {tab === 'serie' && <SeriesForm series={series} onSaved={onSeriesSaved} />}
       {tab === 'affichage' && <Display />}
       {tab === 'collaborateurs' && <Team me={me} />}
+      {tab === 'drive' && <DriveSettings />}
       {tab === 'compte' && <Account me={me} />}
     </>
   );

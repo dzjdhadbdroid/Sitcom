@@ -8,6 +8,13 @@ import { removeMember, setGrant, setRole } from '../lib/members.ts';
 import { getSeries, updateSeries } from '../lib/series.ts';
 import { createSession, getSessionUser, revokeSession, SESSION_TTL_DAYS, type SessionUser } from '../lib/sessions.ts';
 import type { DB } from '../lib/db.ts';
+import { DRIVE_SCOPE, clientFor, disconnect, getConnectionInfo, saveConnection, type DriveSecrets } from '../lib/drive-connection.ts';
+import { DRIVE_ERROR_MESSAGES, DriveError } from '../lib/drive.ts';
+import {
+  addSyncFolder, browseFolders, importDocuments, listAvailable, listImported, listSyncFolders, readDocument, reclassify,
+  refreshAvailable, removeSyncFolder, syncAll, syncConnection, syncIfStale,
+} from '../lib/drive-sync.ts';
+import { can } from '../lib/permissions.ts';
 
 interface Env {
   DB: D1Database;
@@ -15,12 +22,15 @@ interface Env {
   OWNER_EMAIL: string;
   GOOGLE_CLIENT_ID: string; // secret Cloudflare : « wrangler secret put GOOGLE_CLIENT_ID »
   GOOGLE_CLIENT_SECRET: string; // secret Cloudflare
+  TOKEN_ENCRYPTION_KEY: string; // secret Cloudflare : 32 octets en base64url (voir docs/GOOGLE_INTEGRATION.md)
 }
 type Vars = { user: SessionUser };
 
 const SESSION_COOKIE = '__Host-session';
 const OAUTH_COOKIE = '__Host-oauth';
 const db = (env: Env) => env.DB as unknown as DB;
+const secretsOf = (env: Env): DriveSecrets => ({ clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, encryptionKey: env.TOKEN_ENCRYPTION_KEY });
+const DRIVE_OAUTH_COOKIE = '__Host-drive-oauth';
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -202,10 +212,164 @@ app.put('/api/admin/members/:id/grants/:resourceId', async (c) => {
   return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
 });
 
+// ---------- Google Drive (lecture seule) ----------
+// Le jeton Google n'est jamais envoyé au navigateur : tout passe par ces routes, qui contrôlent les droits.
+
+/** Démarre la demande d'autorisation Drive (portée en lecture seule), séparée de la connexion. */
+app.get('/api/drive/connect', async (c) => {
+  const me = c.get('user');
+  if (!(await can(db(c.env), me.userId, 'write', 'series'))) return c.redirect('/#/parametres?drive=refuse');
+  const url = new URL(c.req.url);
+  const state = randomToken(24);
+  const verifier = randomToken(48);
+  const challenge = toBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
+  setCookie(c, DRIVE_OAUTH_COOKIE, JSON.stringify({ state, verifier, user: me.userId }), { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: 600 });
+  const auth = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  auth.search = new URLSearchParams({
+    client_id: c.env.GOOGLE_CLIENT_ID,
+    redirect_uri: `${url.origin}/api/drive/callback`,
+    response_type: 'code',
+    scope: `openid ${DRIVE_SCOPE}`,
+    access_type: 'offline', // nécessaire pour la synchronisation automatique
+    prompt: 'consent',
+    include_granted_scopes: 'true',
+    login_hint: me.email,
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  }).toString();
+  return c.redirect(auth.toString());
+});
+
+app.get('/api/drive/callback', async (c) => {
+  const me = c.get('user');
+  const url = new URL(c.req.url);
+  const raw = getCookie(c, DRIVE_OAUTH_COOKIE);
+  deleteCookie(c, DRIVE_OAUTH_COOKIE, { path: '/', secure: true });
+  const back = (code: string) => c.redirect(`/#/parametres?drive=${code}`);
+  let saved: { state: string; verifier: string; user: string };
+  try { saved = JSON.parse(raw ?? ''); } catch { return back('expire'); }
+  const code = url.searchParams.get('code');
+  if (saved.user !== me.userId || url.searchParams.get('error') || !code || url.searchParams.get('state') !== saved.state) return back('refuse');
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code, client_id: c.env.GOOGLE_CLIENT_ID, client_secret: c.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: `${url.origin}/api/drive/callback`, grant_type: 'authorization_code', code_verifier: saved.verifier,
+    }),
+  });
+  if (!tokenRes.ok) return back('echec');
+  const tok = (await tokenRes.json()) as { refresh_token?: string; id_token?: string; scope?: string };
+  if (!tok.refresh_token || !tok.id_token) return back('echec');
+  // Le compte Google autorisé doit être celui de l'utilisateur connecté (même identifiant « sub »).
+  let sub = '';
+  try { sub = String(JSON.parse(new TextDecoder().decode(fromBase64Url(tok.id_token.split('.')[1]))).sub); } catch { return back('echec'); }
+  const owner = await c.env.DB.prepare('SELECT google_sub AS sub FROM users WHERE id = ?').bind(me.userId).first<{ sub: string | null }>();
+  if (!owner || owner.sub !== sub) return back('autre_compte');
+  // La portée accordée doit être exactement la lecture seule demandée.
+  if (!(tok.scope ?? '').split(' ').includes(DRIVE_SCOPE)) return back('portee');
+
+  await saveConnection(db(c.env), me.userId, tok.refresh_token, DRIVE_SCOPE, c.env.TOKEN_ENCRYPTION_KEY);
+  return back('ok');
+});
+
+const driveFail = (c: { json: (b: unknown, s?: never) => Response }, e: unknown) => {
+  const kind = e instanceof DriveError ? e.kind : 'unknown';
+  const code = kind === 'auth_revoked' ? 409 : kind === 'forbidden' ? 403 : kind === 'not_found' ? 404 : kind === 'rate_limited' || kind === 'temporary' ? 503 : 502;
+  return c.json({ erreur: kind, message: DRIVE_ERROR_MESSAGES[kind] ?? DRIVE_ERROR_MESSAGES.unknown }, code as never);
+};
+
+app.get('/api/drive/status', async (c) => {
+  const me = c.get('user');
+  const connection = await getConnectionInfo(db(c.env), me.userId);
+  const folders = connection ? await listSyncFolders(db(c.env), me.userId) : [];
+  return c.json({ connection, folders, canConnect: await can(db(c.env), me.userId, 'write', 'series') });
+});
+
+app.delete('/api/drive/connection', async (c) => {
+  const ok = await disconnect(db(c.env), c.get('user').userId, c.env.TOKEN_ENCRYPTION_KEY);
+  return ok ? c.json({ ok: true }) : c.json({ erreur: 'not_found' }, 404);
+});
+
+app.get('/api/drive/folders', async (c) => {
+  try {
+    const parent = c.req.query('parent') ?? 'root';
+    return c.json(await browseFolders(await clientFor(db(c.env), c.get('user').userId, secretsOf(c.env)), parent));
+  } catch (e) { return driveFail(c, e); }
+});
+
+app.post('/api/drive/sync-folders', async (c) => {
+  const body = await c.req.json<{ folderId?: string }>().catch(() => ({}) as { folderId?: string });
+  try {
+    const me = c.get('user');
+    const drive = await clientFor(db(c.env), me.userId, secretsOf(c.env));
+    const r = await addSyncFolder(db(c.env), me.userId, drive, String(body.folderId ?? ''));
+    if (!r.ok) return c.json({ erreur: r.reason }, status(r.reason));
+    c.executionCtx.waitUntil(refreshAvailable(db(c.env), me.userId, drive).catch(() => {}));
+    return c.json(r);
+  } catch (e) { return driveFail(c, e); }
+});
+
+app.delete('/api/drive/sync-folders/:folderId', async (c) => {
+  const r = await removeSyncFolder(db(c.env), c.get('user').userId, c.req.param('folderId'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+
+/** Synchronisation à la demande (bouton « Synchroniser maintenant »). */
+app.post('/api/drive/sync', async (c) => {
+  const me = c.get('user');
+  const result = await syncConnection(db(c.env), me.userId, secretsOf(c.env));
+  return c.json(result, result.ok ? 200 : 502);
+});
+
+app.get('/api/drive/available', async (c) => {
+  const me = c.get('user');
+  if (!(await can(db(c.env), me.userId, 'write', 'series'))) return c.json({ erreur: 'forbidden' }, 403);
+  if (c.req.query('refresh') === '1') {
+    try { await refreshAvailable(db(c.env), me.userId, await clientFor(db(c.env), me.userId, secretsOf(c.env))); } catch (e) { return driveFail(c, e); }
+  }
+  return c.json(await listAvailable(db(c.env), me.userId));
+});
+
+app.post('/api/drive/import', async (c) => {
+  const body = await c.req.json<{ items?: { id: string; category: string; sectionId: string }[] }>().catch(() => ({}) as { items?: never[] });
+  const r = await importDocuments(db(c.env), c.get('user').userId, Array.isArray(body.items) ? body.items.slice(0, 200) : []);
+  return r.ok ? c.json(r) : c.json({ erreur: r.reason }, status(r.reason));
+});
+
+app.get('/api/documents', async (c) => {
+  const me = c.get('user');
+  // Mise à jour automatique si la dernière synchronisation date de plus de 2 minutes (le Cron fait le reste).
+  c.executionCtx.waitUntil(syncIfStale(db(c.env), me.userId, secretsOf(c.env), 120_000).catch(() => {}));
+  return c.json(await listImported(db(c.env), me.userId));
+});
+
+app.patch('/api/documents/:id', async (c) => {
+  const body = await c.req.json<{ category?: string; sectionId?: string }>().catch(() => ({}) as { category?: string; sectionId?: string });
+  const r = await reclassify(db(c.env), c.get('user').userId, c.req.param('id'), { category: body.category, sectionId: body.sectionId });
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+
+/** Contenu d'un document : lu à la volée avec le compte Google de la personne, jamais copié en base. */
+app.get('/api/documents/:id/content', async (c) => {
+  const r = await readDocument(db(c.env), c.get('user').userId, c.req.param('id'), secretsOf(c.env));
+  if (r.ok) return c.json({ html: r.html, title: r.title, openUrl: r.openUrl });
+  const http = r.reason === 'forbidden' ? 403 : r.reason === 'not_found' || r.reason === 'inaccessible' ? 404 : r.reason === 'reauth_required' || r.reason === 'not_connected' ? 409 : r.reason === 'temporary' || r.reason === 'rate_limited' ? 503 : 422;
+  return c.json({ erreur: r.reason, message: DRIVE_ERROR_MESSAGES[r.reason] ?? DRIVE_ERROR_MESSAGES.unknown }, http);
+});
+
 app.notFound((c) => c.json({ erreur: 'introuvable' }, 404));
 app.onError((err, c) => {
   console.error('Erreur serveur', err.message); // jamais de jeton ni de donnée personnelle dans les journaux
   return c.json({ erreur: 'erreur_interne' }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // Tâche planifiée (Cron Trigger, gratuit) : synchronise les connexions Drive actives, par lots limités.
+  async scheduled(_event: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }) {
+    ctx.waitUntil(syncAll(db(env), secretsOf(env)).catch((e) => console.error('Synchronisation planifiée en échec', (e as Error).message)));
+  },
+};

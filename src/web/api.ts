@@ -7,15 +7,35 @@ export interface Series {
 export interface Dashboard {
   members: { total: number; admins: number; editors: number; readers: number };
   recentActivity: { id: string; action: string; actorName: string | null; createdAt: string }[] | null;
+  recentDocuments: { id: string; title: string; category: string | null; modifiedTime: string | null; status: string }[];
 }
+export interface DriveStatus {
+  connection: { status: 'active' | 'reauth_required'; lastSyncAt: string | null; lastError: string | null; connectedAt: string } | null;
+  folders: { id: string; folderId: string; name: string; addedAt: string }[];
+  canConnect: boolean;
+}
+export interface DocItem {
+  id: string; driveFileId: string; title: string; mimeType: string; modifiedTime: string | null; webViewLink: string | null;
+  state: 'available' | 'imported'; category: string | null; sectionId: string | null; status: string; statusDetail: string | null; viewable: boolean;
+}
+export const CATEGORY_LABEL: Record<string, string> = {
+  script: 'Script', draft: 'Brouillon', notes: 'Notes', corrected: 'Version corrigée', reference: 'Référence', other: 'Autre',
+};
+export const DOC_SECTIONS: { id: string; label: string }[] = [
+  { id: 'section:seasons', label: 'Saisons' }, { id: 'section:characters', label: 'Personnages' }, { id: 'section:universe', label: 'Univers' },
+  { id: 'section:timeline', label: 'Chronologie' }, { id: 'section:ideas', label: 'Idées' }, { id: 'section:documents', label: 'Documents généraux' },
+];
+export const STATUS_LABEL: Record<string, string> = {
+  ok: 'À jour', trashed: 'Dans la corbeille Google Drive', removed: 'Supprimé ou accès retiré', moved_out: 'Déplacé hors des dossiers synchronisés', inaccessible: 'Inaccessible',
+};
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; erreur: string };
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; erreur: string; message?: string };
 
 export async function api<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
   try {
     const res = await fetch(path, { credentials: 'same-origin', ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } });
     const body = await res.json().catch(() => ({}));
-    return res.ok ? { ok: true, data: body as T } : { ok: false, status: res.status, erreur: (body as { erreur?: string }).erreur ?? 'erreur' };
+    return res.ok ? { ok: true, data: body as T } : { ok: false, status: res.status, erreur: (body as { erreur?: string }).erreur ?? 'erreur', message: (body as { message?: string }).message };
   } catch {
     return { ok: false, status: 0, erreur: 'reseau' };
   }
@@ -33,6 +53,8 @@ export const API_ERRORS: Record<string, string> = {
   invalid_plannedSeasons: 'Le nombre de saisons doit être un entier entre 1 et 99.',
   invalid_avgDurationMin: 'La durée doit être un entier entre 1 et 600 minutes.',
   invalid_accentColor: 'Couleur invalide.',
+  not_a_folder: "Cet élément n'est pas un dossier.", invalid_selection: 'Sélectionnez au moins un document.',
+  invalid_category: 'Catégorie invalide.', invalid_section: 'Rubrique invalide.', nothing_to_import: 'Aucun document à importer (déjà importés ou introuvables).',
   nothing_to_update: 'Aucune modification à enregistrer.',
   erreur_interne: 'Une erreur est survenue. Réessayez dans un instant.',
 };
@@ -47,5 +69,6 @@ const ACTION_LABEL: Record<string, string> = {
   'member.removed': 'Membre retiré',
   'permission.changed': 'Permissions modifiées',
   'series.updated': 'Fiche de la série modifiée',
+  'drive.connected': 'Google Drive connecté', 'drive.disconnected': 'Google Drive déconnecté', 'drive.reauth_required': 'Reconnexion Google Drive requise',
 };
 export const actionLabel = (a: string) => ACTION_LABEL[a] ?? a;

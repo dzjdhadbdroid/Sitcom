@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — Phase 4 : Google Drive et Google Docs (lecture seule)
+- Connexion Drive séparée (portée `drive.readonly`, jeton chiffré), déconnexion avec révocation, choix des dossiers à surveiller.
+- Synchronisation par l'API Changes (Cron toutes les 15 min, à l'ouverture, bouton manuel), reprise après interruption, nouvelles tentatives, erreurs sans perte de données.
+- Import **manuel** avec catégorie et rubrique ; classement modifiable ; avertissements pour documents supprimés, en corbeille, déplacés ou inaccessibles (références conservées).
+- Lecteur de documents (HTML assaini, taille/police, recherche, « Ouvrir dans Google Docs », aucun téléchargement) ; carte « Derniers documents modifiés » réelle, filtrée par permissions.
+- Correctif : `readableIds` ne renvoie plus les ressources inexistantes pour un administrateur.
+- Migration `0003_drive.sql`, 26 nouveaux tests (61 au total), contrôle visuel 63/63.
+- Non validé : comportement du vrai Google (voir `docs/GOOGLE_INTEGRATION.md`), build/Worker/CI jamais exécutés dans cet environnement. Non implémenté : écran de notifications (phase 13), limitation de débit.
+
 ## 0.3.0 — Phase 3 : interface et navigation
 - Menu latéral permanent (ordinateur), tiroir (tablette), barre du bas + tiroir (smartphone) ; 9 rubriques dans l'ordre du cahier des charges.
 - Thèmes clair, sombre et automatique (choix conservé sur l'appareil) ; couleur principale de la série appliquée à l'interface.

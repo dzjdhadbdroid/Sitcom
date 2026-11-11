@@ -131,3 +131,25 @@ main#contenu { max-width: 1040px; padding: 32px 32px 48px; outline: none; }
   .tab[aria-current='page'] { color: var(--accent); font-weight: 600; }
   .row input[type='email'], .row select, .row button { flex: 1 1 100%; }
 }
+
+/* Phase 4 : Google Drive et lecteur de documents */
+.notice { border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; margin: 0 0 16px; background: var(--accent-soft); }
+.btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+button.link { background: none; border: 0; padding: 4px 0; color: var(--accent); cursor: pointer; font: inherit; text-align: left; }
+button.link:disabled { color: var(--text); cursor: default; font-weight: 600; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+.doclist { list-style: none; margin: 0 0 16px; padding: 0; }
+.doclist li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.doclist li:last-child { border-bottom: 0; }
+.check { display: flex; gap: 8px; align-items: center; }
+.warn { color: var(--danger); font-size: .85rem; margin-left: 8px; }
+.doclist .badge { margin-left: 8px; }
+.reader-tools { position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 1; }
+.reader-tools input[type='search'] { flex: 1 1 200px; width: auto; }
+.reader { line-height: 1.7; overflow-wrap: anywhere; }
+.reader.serif { font-family: Georgia, 'Times New Roman', serif; }
+.reader img { max-width: 100%; height: auto; }
+.reader table { border-collapse: collapse; max-width: 100%; display: block; overflow-x: auto; }
+.reader td, .reader th { border: 1px solid var(--line); padding: 4px 8px; }
+.check { display: flex; flex-direction: row; gap: 10px; align-items: center; text-align: left; }
+.check input[type='checkbox'] { width: auto; margin: 0; }

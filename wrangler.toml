@@ -18,3 +18,7 @@ database_id = "REMPLACER_PAR_L_IDENTIFIANT_D1"
 # Variables NON secrètes uniquement. Les secrets se définissent avec « wrangler secret put ».
 [vars]
 OWNER_EMAIL = "REMPLACER_PAR_VOTRE_ADRESSE_GOOGLE"
+
+# Synchronisation Drive automatique (Cron Trigger : gratuit). Toutes les 15 minutes.
+[triggers]
+crons = ["*/15 * * * *"]

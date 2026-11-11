@@ -32,3 +32,6 @@ Le Worker sert aussi le frontend : une seule origine, donc cookies de première 
 - Navigation : menu fixe au-dessus de 1024 px, tiroir entre 640 et 1023 px, barre du bas (4 rubriques + « Plus ») sous 640 px.
 - Thème : variables CSS ; `data-theme` force clair/sombre, sinon suivi du système. Couleur de la série : `--accent`, texte de contraste calculé.
 - Contrôle visuel : `tests/visual/check.cjs` (Chrome, serveur simulé avec données fictives, 3 tailles × 2 thèmes). Il vérifie l'absence de débordement, la navigation, les formulaires et les droits ; il n'est pas lancé par la CI.
+
+## Phase 4 : Drive
+Modules `src/lib/drive.ts` (client GET-only), `drive-connection.ts` (jeton chiffré), `drive-sync.ts` (dossiers, import, synchronisation, lecture). Le Worker expose `/api/drive/*` et `/api/documents*` et un gestionnaire `scheduled`. Le frontend ajoute l'onglet Paramètres → Google Drive, la liste et le lecteur de documents.

@@ -18,3 +18,8 @@ Les identifiants sont des UUID, jamais des numéros affichés.
 
 ## Phase 3 : migration `0002_series_profile.sql`
 Colonnes ajoutées à `series` : `genre`, `format`, `summary`, `planned_seasons`, `avg_duration_min`, `audience`, `inspirations`, `notes`, `accent_color` (`#rrggbb`), `updated_at`. Le journal d'activité conserve les noms des champs modifiés, jamais leur contenu.
+
+## Phase 4 : migration `0003_drive.sql`
+- `drive_connections` : une ligne par utilisateur (jeton de renouvellement **chiffré**, portée, statut `active`/`reauth_required`, curseur `page_token` de l'API Changes, dernière synchronisation/erreur).
+- `drive_sync_folders` : dossiers surveillés par utilisateur.
+- `drive_documents` : références de documents (`state` = `available` ou `imported`, catégorie, rubrique, statut `ok`/`trashed`/`removed`/`moved_out`). Un document importé est aussi une ressource `item` de l'arbre des permissions. **Aucun contenu de document n'est stocké.**
