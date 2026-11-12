@@ -4,6 +4,7 @@ import { Shell } from './Shell.tsx';
 import { Dashboard } from './pages/Dashboard.tsx';
 import { NotFound, Placeholder } from './pages/Placeholder.tsx';
 import { Settings } from './pages/Settings.tsx';
+import { EpisodePage, Seasons } from './pages/Seasons.tsx';
 import { DocumentList, DocumentReader } from './pages/Documents.tsx';
 import { useRoute } from './router.ts';
 import { SECTION_INFO } from './nav.ts';
@@ -65,6 +66,8 @@ export function App() {
   let page;
   if (route === '') page = <Dashboard me={me} series={series} />;
   else if (section === 'parametres') page = <Settings me={me} series={series} route={route} onSeriesSaved={loadSeries} />;
+  else if (route === 'saisons') page = <Seasons me={me} />;
+  else if (route.startsWith('saisons/e/') && route.split('/').length === 3) page = <EpisodePage id={route.split('/')[2]} />;
   else if (route === 'documents') page = <DocumentList />;
   else if (section === 'documents' && route.split('/').length === 2) page = <DocumentReader id={route.split('/')[1]} />;
   else if (SECTION_INFO[section] && route === section) page = <Placeholder section={section} />;

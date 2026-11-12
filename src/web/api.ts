@@ -7,6 +7,8 @@ export interface Series {
 export interface Dashboard {
   members: { total: number; admins: number; editors: number; readers: number };
   recentActivity: { id: string; action: string; actorName: string | null; createdAt: string }[] | null;
+  episodes: { total: number; byStatus: Record<EpisodeStatus, number> };
+  seasons: { id: string; number: number | null; title: string; total: number; completed: number; finished: boolean }[];
   recentDocuments: { id: string; title: string; category: string | null; modifiedTime: string | null; status: string }[];
 }
 export interface DriveStatus {
@@ -55,6 +57,9 @@ export const API_ERRORS: Record<string, string> = {
   invalid_accentColor: 'Couleur invalide.',
   not_a_folder: "Cet élément n'est pas un dossier.", invalid_selection: 'Sélectionnez au moins un document.',
   invalid_category: 'Catégorie invalide.', invalid_section: 'Rubrique invalide.', nothing_to_import: 'Aucun document à importer (déjà importés ou introuvables).',
+  invalid_summary: 'Texte trop long (5 000 caractères maximum).', invalid_number: 'Numéro invalide.', invalid_episode_count: 'Le nombre d’épisodes doit être compris entre 0 et 60.',
+  invalid_kind: 'Type invalide.', invalid_status: 'Statut invalide.', invalid_duration: 'La durée doit être comprise entre 1 et 600 minutes.',
+  season_not_found: 'Saison introuvable.', invalid_order: 'Ordre invalide : rechargez la page.', not_found: 'Élément introuvable ou déjà archivé.',
   nothing_to_update: 'Aucune modification à enregistrer.',
   erreur_interne: 'Une erreur est survenue. Réessayez dans un instant.',
 };
@@ -69,6 +74,24 @@ const ACTION_LABEL: Record<string, string> = {
   'member.removed': 'Membre retiré',
   'permission.changed': 'Permissions modifiées',
   'series.updated': 'Fiche de la série modifiée',
+  'season.created': 'Saison créée', 'season.updated': 'Saison modifiée', 'season.reordered': 'Saisons réorganisées', 'season.archived': 'Saison archivée',
+  'episode.created': 'Épisode créé', 'episode.updated': 'Épisode modifié', 'episode.reordered': 'Épisodes réorganisés', 'episode.archived': 'Épisode archivé',
+  'episode.document_linked': 'Document associé à un épisode', 'episode.document_unlinked': 'Document détaché d’un épisode', 'episode.main_script_changed': 'Scénario principal modifié',
+  'document.imported': 'Document importé', 'document.reclassified': 'Document reclassé',
   'drive.connected': 'Google Drive connecté', 'drive.disconnected': 'Google Drive déconnecté', 'drive.reauth_required': 'Reconnexion Google Drive requise',
 };
 export const actionLabel = (a: string) => ACTION_LABEL[a] ?? a;
+
+export type EpisodeStatus = 'idea' | 'writing' | 'done' | 'validated';
+export type EpisodeKind = 'regular' | 'pilot' | 'special' | 'bonus' | 'cut_scene';
+export const STATUS_NAMES: Record<EpisodeStatus, string> = { idea: 'Idée', writing: 'En cours d’écriture', done: 'Terminé', validated: 'Validé' };
+export const KIND_NAMES: Record<EpisodeKind, string> = { regular: 'Épisode', pilot: 'Pilote', special: 'Épisode spécial', bonus: 'Contenu bonus', cut_scene: 'Scène coupée' };
+export interface EpisodeRow {
+  id: string; seasonId: string | null; kind: EpisodeKind; number: number | null; code: string; title: string; summary: string | null;
+  status: EpisodeStatus; durationMin: number | null; position: number; documentCount: number; hasMainScript: boolean;
+}
+export interface SeasonRow { id: string; number: number | null; title: string; summary: string | null; position: number; finishedAt: string | null; episodes: EpisodeRow[] }
+export interface SeasonsData { seasons: SeasonRow[]; loose: EpisodeRow[] }
+export interface EpisodeDoc { id: string; title: string; category: string | null; status: string; statusDetail: string | null; isMain: boolean; viewable: boolean; modifiedTime: string | null }
+export interface EpisodeDetail extends EpisodeRow { seasonTitle: string | null; seasonNumber: number | null; documents: EpisodeDoc[]; canWrite: boolean }
+export const episodeTitle = (e: { title: string }) => e.title || 'Sans titre';

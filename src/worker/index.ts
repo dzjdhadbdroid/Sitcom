@@ -15,6 +15,7 @@ import {
   refreshAvailable, removeSyncFolder, syncAll, syncConnection, syncIfStale,
 } from '../lib/drive-sync.ts';
 import { can } from '../lib/permissions.ts';
+import { archive, createEpisode, createSeason, getEpisode, linkDocument, listSeasons, reorderEpisodes, reorderSeasons, setMainDocument, unlinkDocument, updateEpisode, updateSeason } from '../lib/seasons.ts';
 
 interface Env {
   DB: D1Database;
@@ -209,6 +210,68 @@ app.delete('/api/admin/members/:id', async (c) => {
 app.put('/api/admin/members/:id/grants/:resourceId', async (c) => {
   const body = await c.req.json<{ level?: string | null }>().catch(() => ({}) as { level?: string | null });
   const r = await setGrant(db(c.env), c.get('user').userId, c.req.param('id'), c.req.param('resourceId'), (body.level ?? null) as never);
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+
+// ---------- Saisons et épisodes ----------
+const body = <T,>(c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => ({})) as Promise<T>;
+
+app.get('/api/seasons', async (c) => {
+  const r = await listSeasons(db(c.env), c.get('user').userId);
+  return r ? c.json(r) : c.json({ erreur: 'forbidden' }, 403);
+});
+app.post('/api/seasons', async (c) => {
+  const r = await createSeason(db(c.env), c.get('user').userId, await body(c));
+  return r.ok ? c.json(r, 201) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.post('/api/seasons/reorder', async (c) => {
+  const b = await body<{ ids?: string[] }>(c);
+  const r = await reorderSeasons(db(c.env), c.get('user').userId, b.ids as string[]);
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.patch('/api/seasons/:id', async (c) => {
+  const r = await updateSeason(db(c.env), c.get('user').userId, c.req.param('id'), await body(c));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.delete('/api/seasons/:id', async (c) => {
+  const r = await archive(db(c.env), c.get('user').userId, c.req.param('id'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+
+app.post('/api/episodes', async (c) => {
+  const r = await createEpisode(db(c.env), c.get('user').userId, await body(c));
+  return r.ok ? c.json(r, 201) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.post('/api/episodes/reorder', async (c) => {
+  const b = await body<{ seasonId?: string | null; ids?: string[] }>(c);
+  const r = await reorderEpisodes(db(c.env), c.get('user').userId, b.seasonId ?? null, b.ids as string[]);
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.get('/api/episodes/:id', async (c) => {
+  const e = await getEpisode(db(c.env), c.get('user').userId, c.req.param('id'));
+  return e ? c.json(e) : c.json({ erreur: 'forbidden' }, 403);
+});
+app.patch('/api/episodes/:id', async (c) => {
+  const r = await updateEpisode(db(c.env), c.get('user').userId, c.req.param('id'), await body(c));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.delete('/api/episodes/:id', async (c) => {
+  const r = await archive(db(c.env), c.get('user').userId, c.req.param('id'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.put('/api/episodes/:id/documents/:docId', async (c) => {
+  const b = await body<{ main?: boolean }>(c);
+  const me = c.get('user').userId;
+  const r = await linkDocument(db(c.env), me, c.req.param('id'), c.req.param('docId'), b.main === true);
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.put('/api/episodes/:id/main-document', async (c) => {
+  const b = await body<{ documentId?: string | null }>(c);
+  const r = await setMainDocument(db(c.env), c.get('user').userId, c.req.param('id'), b.documentId ?? null);
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.delete('/api/episodes/:id/documents/:docId', async (c) => {
+  const r = await unlinkDocument(db(c.env), c.get('user').userId, c.req.param('id'), c.req.param('docId'));
   return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
 });
 

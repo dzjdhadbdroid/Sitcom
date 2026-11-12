@@ -1,11 +1,16 @@
 import type { DB } from './db.ts';
 import { can, readableIds } from './permissions.ts';
+import { listSeasons } from './seasons.ts';
 
 export interface DashboardData {
   members: { total: number; admins: number; editors: number; readers: number };
   /** Réservé aux administrateurs (le journal d'activité est une donnée sensible). */
   recentActivity: { id: string; action: string; actorName: string | null; createdAt: string }[] | null;
   /** Derniers documents Drive importés, modifiés récemment, filtrés selon les droits de l'utilisateur. */
+  /** Épisodes visibles par l'utilisateur : total et répartition par statut prédéfini. */
+  episodes: { total: number; byStatus: Record<'idea' | 'writing' | 'done' | 'validated', number> };
+  /** Avancement par saison : part des épisodes « Terminé » ou « Validé ». */
+  seasons: { id: string; number: number | null; title: string; total: number; completed: number; finished: boolean }[];
   recentDocuments: { id: string; title: string; category: string | null; modifiedTime: string | null; status: string }[];
 }
 
@@ -47,5 +52,14 @@ export async function getDashboard(db: DB, userId: string): Promise<DashboardDat
   const ok = await readableIds(db, userId, docs.map((d) => d.id));
   const recentDocuments = docs.filter((d) => ok.has(d.id)).slice(0, 5);
 
-  return { members: counts ?? { total: 0, admins: 0, editors: 0, readers: 0 }, recentActivity, recentDocuments };
+  const all = await listSeasons(db, userId);
+  const eps = [...(all?.seasons.flatMap((x) => x.episodes) ?? []), ...(all?.loose ?? [])];
+  const byStatus = { idea: 0, writing: 0, done: 0, validated: 0 };
+  for (const e of eps) byStatus[e.status]++;
+  const seasons = (all?.seasons ?? []).map((x) => ({
+    id: x.id, number: x.number, title: x.title, total: x.episodes.length,
+    completed: x.episodes.filter((e) => e.status === 'done' || e.status === 'validated').length, finished: x.finishedAt !== null,
+  }));
+
+  return { episodes: { total: eps.length, byStatus }, seasons, members: counts ?? { total: 0, admins: 0, editors: 0, readers: 0 }, recentActivity, recentDocuments };
 }

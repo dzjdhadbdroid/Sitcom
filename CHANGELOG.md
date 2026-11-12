@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — Phase 5 : saisons et épisodes
+- Saisons : création vide ou avec N emplacements générés (0 à 60), numéro automatique modifiable, titre, résumé, marquage manuel « terminée », réorganisation (↑/↓), archivage.
+- Épisodes : numéro de référence (S01E01, S01SP01, HSBN01…), types (épisode, pilote, spécial, bonus, scène coupée, hors saison), statuts prédéfinis non personnalisables (Idée, En cours d'écriture, Terminé, Validé), durée, résumé, déplacement entre saisons. L'identité est un identifiant interne : changer un numéro ou réordonner ne touche à aucun document.
+- Documents associés : plusieurs par épisode, un seul scénario principal, détachement (le lien seul), avertissements Drive visibles, lecteur existant réutilisé.
+- Affichage liste ou cartes (choix mémorisé sur l'appareil). Tableau de bord : progression globale, avancement par saison et épisodes par statut, calculés sur les données réelles et filtrés par permissions.
+- Archivage uniquement (aucune suppression définitive) ; l'écran des archives et la restauration arrivent en phase 12.
+- Migration `0004_seasons_episodes.sql`, 15 nouveaux tests (76 au total), contrôle visuel 76/76.
+- Non implémenté : réorganisation par glisser-déposer (boutons ↑/↓ pour l'instant), personnages présents et événements liés (phases 6 et 8), statistiques détaillées.
+
 ## 0.4.0 — Phase 4 : Google Drive et Google Docs (lecture seule)
 - Connexion Drive séparée (portée `drive.readonly`, jeton chiffré), déconnexion avec révocation, choix des dossiers à surveiller.
 - Synchronisation par l'API Changes (Cron toutes les 15 min, à l'ouverture, bouton manuel), reprise après interruption, nouvelles tentatives, erreurs sans perte de données.

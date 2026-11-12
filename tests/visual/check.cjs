@@ -35,9 +35,12 @@ function server() {
       if (req.method === 'PUT') { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => { const p = JSON.parse(b); if (state.role === 'reader') return json(403, { erreur: 'forbidden' }); if (!p.title) return json(400, { erreur: 'invalid_title' }); Object.assign(state.series, p); json(200, { ok: true }); }); return; }
       return json(200, state.series);
     }
-    if (url.pathname === '/api/dashboard') return json(200, { members: { total: 3, admins: 1, editors: 1, readers: 1 }, recentActivity: state.role === 'admin' ? [{ id: 'a', action: 'series.updated', actorName: 'Utilisateur Test', createdAt: new Date().toISOString() }] : null, recentDocuments: [{ id: 'doc1', title: 'Document fictif', category: 'script', modifiedTime: '2026-02-01T10:00:00.000Z', status: 'ok' }] });
+    if (url.pathname === '/api/dashboard') return json(200, { members: { total: 3, admins: 1, editors: 1, readers: 1 }, recentActivity: state.role === 'admin' ? [{ id: 'a', action: 'series.updated', actorName: 'Utilisateur Test', createdAt: new Date().toISOString() }] : null, episodes: { total: 3, byStatus: { idea: 1, writing: 1, done: 1, validated: 0 } }, seasons: [{ id: 'sa1', number: 1, title: '', total: 3, completed: 1, finished: false }], recentDocuments: [{ id: 'doc1', title: 'Document fictif', category: 'script', modifiedTime: '2026-02-01T10:00:00.000Z', status: 'ok' }] });
     if (url.pathname === '/api/admin/members') return json(200, [{ id: 'u1', email: 'test@example.test', name: 'Utilisateur Test', role: 'admin', isOwner: 1, joinedAt: '2026-01-01' }]);
     if (url.pathname === '/api/admin/invitations') return req.method === 'POST' ? json(200, { id: 'i', expiresAt: '2026-12-01', lien: 'https://exemple.test/api/auth/login?invite=JETON' }) : json(200, []);
+    if (url.pathname === '/api/seasons' && req.method === 'GET') return json(state.role === 'none' ? 403 : 200, { seasons: state.seasons, loose: [] });
+    if (url.pathname === '/api/seasons' && req.method === 'POST') { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => { if (state.role === 'reader') return json(403, { erreur: 'forbidden' }); const p = JSON.parse(b); const id = 'sa' + (state.seasons.length + 1); const n = state.seasons.length + 1; state.seasons.push({ id, number: n, title: p.title || '', summary: null, position: n, finishedAt: null, episodes: Array.from({ length: p.episodeCount || 0 }, (_, i) => ({ id: `${id}e${i + 1}`, seasonId: id, kind: 'regular', number: i + 1, code: `S0${n}E0${i + 1}`, title: '', summary: null, status: 'idea', durationMin: null, position: i + 1, documentCount: 0, hasMainScript: false })) }); json(201, { ok: true, id }); }); return; }
+    if (url.pathname === '/api/episodes/sa1e1') return json(200, { ...state.seasons[0].episodes[0], seasonTitle: null, seasonNumber: 1, canWrite: state.role !== 'reader', documents: [{ id: 'doc1', title: 'Document fictif', category: 'script', status: 'ok', statusDetail: null, isMain: true, viewable: true, modifiedTime: null }, { id: 'doc2', title: 'Document déplacé', category: 'notes', status: 'removed', statusDetail: 'x', isMain: false, viewable: true, modifiedTime: null }] });
     if (url.pathname === '/api/documents') return json(200, [
       { id: 'doc1', driveFileId: 'x1', title: 'Document fictif', mimeType: 'application/vnd.google-apps.document', modifiedTime: '2026-02-01T10:00:00.000Z', webViewLink: null, state: 'imported', category: 'script', sectionId: 'section:documents', status: 'ok', statusDetail: null, viewable: true },
       { id: 'doc2', driveFileId: 'x2', title: 'Document déplacé', mimeType: 'application/vnd.google-apps.document', modifiedTime: null, webViewLink: null, state: 'imported', category: 'notes', sectionId: 'section:documents', status: 'removed', statusDetail: 'x', viewable: true }]);
@@ -57,6 +60,9 @@ function server() {
 }
 
 const HOSTILE = '<h1 onclick="window.__pwn=1">Titre</h1><p style="position:fixed">Bonjour <b>gras</b></p><script>window.__pwn=2</script><img src="https://evil.example/t.gif" onerror="window.__pwn=3"><img src="https://lh3.googleusercontent.com/ok.png"><a href="javascript:window.__pwn=4">piège</a><a href="https://exemple.test/x">lien</a><iframe src="https://evil.example"></iframe><form action="https://evil.example"><input name="x"></form><svg onload="window.__pwn=5"></svg><table><tr><td colspan="2">cellule</td></tr></table>';
+state.seasons = [{ id: 'sa1', number: 1, title: 'Début', summary: 'Résumé fictif de saison.', position: 1, finishedAt: null, episodes: [
+  { id: 'sa1e1', seasonId: 'sa1', kind: 'pilot', number: 1, code: 'S01E01', title: 'Pilote fictif', summary: 'Un résumé fictif.', status: 'validated', durationMin: 22, position: 1, documentCount: 2, hasMainScript: true },
+  { id: 'sa1e2', seasonId: 'sa1', kind: 'regular', number: 2, code: 'S01E02', title: '', summary: null, status: 'idea', durationMin: null, position: 2, documentCount: 0, hasMainScript: false }] }];
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK  ' : 'ÉCHEC'} ${name}${detail ? ' — ' + detail : ''}`); };
 
@@ -202,6 +208,54 @@ const check = (name, ok, detail = '') => { results.push({ name, ok }); console.l
   await page.goto(`${base}/#/`);
   await page.waitForSelector('#d-docs');
   check('tableau de bord : derniers documents réels affichés', (await page.locator('section[aria-labelledby="d-docs"]').innerText()).includes('Document fictif'));
+
+  // Saisons et épisodes
+  state.role = 'admin';
+  await page.goto(`${base}/#/saisons`);
+  await page.reload();
+  await page.waitForSelector('.ep-row');
+  let t = await page.locator('main').innerText();
+  check('saisons : codes, titres de remplacement et statuts affichés', t.includes('S01E01') && t.includes('Pilote fictif') && t.includes('Sans titre') && t.includes('Validé') && t.includes('Idée'));
+  check('saisons : progression par saison affichée', t.includes('1 / 2'));
+  await page.getByRole('button', { name: 'Cartes' }).click();
+  await page.waitForSelector('.ep-card');
+  check('saisons : bascule en mode cartes', (await page.locator('.ep-card').count()) === 2);
+  await page.screenshot({ path: path.join(out, 'saisons-cartes.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await page.waitForSelector('.ep-row');
+  check('saisons : retour au mode liste', (await page.locator('.ep-row').count()) === 2);
+  await page.getByRole('button', { name: 'Nouvelle saison' }).click();
+  await page.getByLabel("Nombre d'épisodes à créer").fill('3');
+  await page.getByRole('button', { name: 'Créer la saison' }).click();
+  await page.waitForSelector('#s-sa2');
+  check('saisons : création avec emplacements générés', (await page.locator('#s-sa2').locator('xpath=ancestor::section').locator('.ep-row').count()) === 3);
+  await page.screenshot({ path: path.join(out, 'saisons-liste.png'), fullPage: true });
+  await page.goto(`${base}/#/saisons/e/sa1e1`);
+  await page.waitForSelector('#docs');
+  t = await page.locator('main').innerText();
+  check('épisode : fiche, documents associés et scénario principal', t.includes('S01E01') && t.includes('Scénario principal') && t.includes('Document fictif'));
+  check('épisode : avertissement pour un document inaccessible', t.includes('Supprimé ou accès retiré'));
+  await page.screenshot({ path: path.join(out, 'episode.png'), fullPage: true });
+  state.role = 'reader';
+  await page.goto(`${base}/#/saisons`);
+  await page.reload();
+  await page.waitForSelector('.ep-row');
+  check('lecteur : aucun bouton de création/modification de saison', (await page.getByRole('button', { name: /Nouvelle saison|Modifier|Ajouter/ }).count()) === 0);
+  await page.goto(`${base}/#/saisons/e/sa1e1`);
+  await page.waitForSelector('#docs');
+  check('lecteur : fiche épisode en lecture seule', (await page.getByRole('button', { name: 'Enregistrer' }).count()) === 0 && (await page.locator('fieldset[disabled]').count()) === 1);
+  state.role = 'admin';
+  await page.reload();
+  for (const size of [sizes.mobile, sizes.tablette]) {
+    await page.setViewportSize(size);
+    await page.goto(`${base}/#/saisons`);
+    await page.waitForSelector('.ep-row');
+    check(`saisons ${size.width}px : pas de défilement horizontal`, (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0);
+    await page.goto(`${base}/#/saisons/e/sa1e1`);
+    await page.waitForSelector('#docs');
+    check(`épisode ${size.width}px : pas de défilement horizontal`, (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0);
+    if (size === sizes.mobile) await page.screenshot({ path: path.join(out, 'episode-mobile.png'), fullPage: true });
+  }
 
   await browser.close();
   srv.close();

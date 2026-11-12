@@ -153,3 +153,33 @@ button.link:disabled { color: var(--text); cursor: default; font-weight: 600; }
 .reader td, .reader th { border: 1px solid var(--line); padding: 4px 8px; }
 .check { display: flex; flex-direction: row; gap: 10px; align-items: center; text-align: left; }
 .check input[type='checkbox'] { width: auto; margin: 0; }
+
+/* Phase 5 : saisons et épisodes */
+.head { margin-bottom: 8px; }
+.head h1 { margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 8px 14px; font: inherit; color: var(--text); cursor: pointer; }
+.seg button[aria-pressed='true'] { background: var(--accent-soft); font-weight: 600; }
+.code { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; margin-right: 4px; }
+.ep-list { margin: 8px 0 16px; }
+.ep-wrap { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.ep-wrap:last-child { border-bottom: 0; }
+.ep-row { flex: 1; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 10px 0; color: var(--text); text-decoration: none; }
+.ep-row:hover strong { color: var(--accent); }
+.ep-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ep-move { display: flex; gap: 4px; }
+.ep-move .btn { padding: 4px 10px; }
+.ep-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.ep-card { display: flex; flex-direction: column; gap: 8px; margin: 0; color: var(--text); text-decoration: none; }
+.ep-card:hover { border-color: var(--accent); }
+.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+.badge.st-writing { background: #fef3c7; color: #78350f; }
+.badge.st-done { background: #dbeafe; color: #1e3a8a; }
+.badge.st-validated { background: #dcfce7; color: #14532d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .badge.st-writing { background: #5a4310; color: #fde68a; } :root:not([data-theme='light']) .badge.st-done { background: #1e3a6e; color: #bfdbfe; } :root:not([data-theme='light']) .badge.st-validated { background: #14532d; color: #bbf7d0; } }
+:root[data-theme='dark'] .badge.st-writing { background: #5a4310; color: #fde68a; }
+:root[data-theme='dark'] .badge.st-done { background: #1e3a6e; color: #bfdbfe; }
+:root[data-theme='dark'] .badge.st-validated { background: #14532d; color: #bbf7d0; }
+fieldset { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
+progress { width: 100%; height: 10px; accent-color: var(--accent); }
+.badge { margin-left: 6px; }

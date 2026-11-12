@@ -23,3 +23,8 @@ Colonnes ajoutées à `series` : `genre`, `format`, `summary`, `planned_seasons`
 - `drive_connections` : une ligne par utilisateur (jeton de renouvellement **chiffré**, portée, statut `active`/`reauth_required`, curseur `page_token` de l'API Changes, dernière synchronisation/erreur).
 - `drive_sync_folders` : dossiers surveillés par utilisateur.
 - `drive_documents` : références de documents (`state` = `available` ou `imported`, catégorie, rubrique, statut `ok`/`trashed`/`removed`/`moved_out`). Un document importé est aussi une ressource `item` de l'arbre des permissions. **Aucun contenu de document n'est stocké.**
+
+## Phase 5 : migration `0004_seasons_episodes.sql`
+- `seasons` (numéro affiché modifiable et non unique, position, `finished_at` manuel) et `episodes` (`season_id` nul = hors saison, `kind`, `number`, `status` ∈ idée/écriture/terminé/validé, durée, position). Chacun possède une ligne `resources` de même identifiant (permissions hiérarchiques : épisode → saison → rubrique).
+- `episode_documents` : liens épisode ↔ document importé ; index unique partiel garantissant au plus un scénario principal par épisode.
+- L'archivage pose `resources.archived_at` ; rien n'est supprimé.

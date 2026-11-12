@@ -35,3 +35,6 @@ Le Worker sert aussi le frontend : une seule origine, donc cookies de première 
 
 ## Phase 4 : Drive
 Modules `src/lib/drive.ts` (client GET-only), `drive-connection.ts` (jeton chiffré), `drive-sync.ts` (dossiers, import, synchronisation, lecture). Le Worker expose `/api/drive/*` et `/api/documents*` et un gestionnaire `scheduled`. Le frontend ajoute l'onglet Paramètres → Google Drive, la liste et le lecteur de documents.
+
+## Phase 5 : saisons et épisodes
+`src/lib/seasons.ts` (logique et validations, toutes les opérations passent par `can()`/`readableIds()`), routes `/api/seasons*` et `/api/episodes*`, pages `Seasons.tsx` (liste/cartes, fiche épisode). Déplacer un épisode exige l'écriture sur la saison de destination ; une réorganisation laisse en place les éléments que l'utilisateur ne voit pas.

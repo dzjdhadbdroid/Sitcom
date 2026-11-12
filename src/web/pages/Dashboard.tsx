@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { actionLabel, api, apiError, type Dashboard as DashboardData, type Me, type Series } from '../api.ts';
+import { actionLabel, api, apiError, STATUS_NAMES, type Dashboard as DashboardData, type Me, type Series } from '../api.ts';
 
 function Empty({ children }: { children: string }) {
   return <p className="empty">{children}</p>;
@@ -29,15 +29,32 @@ export function Dashboard({ me, series }: { me: Me; series: Series }) {
       <div className="grid">
         <section className="card" aria-labelledby="d-prog">
           <h2 id="d-prog">Progression globale</h2>
-          <Empty>Aucun épisode pour l'instant. La progression s'affichera dès que des saisons et des épisodes auront été créés.</Empty>
+          {!data ? <p className="muted">Chargement…</p> : data.episodes.total === 0 ? <Empty>Aucun épisode pour l'instant. La progression s'affichera dès que des épisodes auront été créés.</Empty> : (() => {
+            const done = data.episodes.byStatus.done + data.episodes.byStatus.validated;
+            const pct = Math.round((done / data.episodes.total) * 100);
+            return (<><p className="big">{pct} %<small> terminés ou validés</small></p><progress value={done} max={data.episodes.total} aria-label="Progression globale" /><p className="muted">{done} épisode{done > 1 ? 's' : ''} sur {data.episodes.total}</p></>);
+          })()}
         </section>
         <section className="card" aria-labelledby="d-seasons">
           <h2 id="d-seasons">Avancement par saison</h2>
-          <Empty>Aucune saison pour l'instant.</Empty>
+          {!data ? <p className="muted">Chargement…</p> : data.seasons.length === 0 ? <Empty>Aucune saison pour l'instant.</Empty> : (
+            <ul className="activity">
+              {data.seasons.map((x) => (
+                <li key={x.id}>
+                  <span>{x.number != null ? `Saison ${x.number}` : 'Saison'}{x.title ? ` — ${x.title}` : ''}{x.finished ? ' ✓' : ''}</span>
+                  <span className="muted">{x.completed} / {x.total}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section className="card" aria-labelledby="d-status">
           <h2 id="d-status">Épisodes par statut</h2>
-          <Empty>Aucun épisode pour l'instant.</Empty>
+          {!data ? <p className="muted">Chargement…</p> : data.episodes.total === 0 ? <Empty>Aucun épisode pour l'instant.</Empty> : (
+            <ul className="activity">
+              {(Object.keys(STATUS_NAMES) as (keyof typeof STATUS_NAMES)[]).map((k) => <li key={k}><span>{STATUS_NAMES[k]}</span><strong>{data.episodes.byStatus[k]}</strong></li>)}
+            </ul>
+          )}
         </section>
         <section className="card" aria-labelledby="d-chars">
           <h2 id="d-chars">Personnages</h2>
