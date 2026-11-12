@@ -38,3 +38,6 @@ Modules `src/lib/drive.ts` (client GET-only), `drive-connection.ts` (jeton chiff
 
 ## Phase 5 : saisons et épisodes
 `src/lib/seasons.ts` (logique et validations, toutes les opérations passent par `can()`/`readableIds()`), routes `/api/seasons*` et `/api/episodes*`, pages `Seasons.tsx` (liste/cartes, fiche épisode). Déplacer un épisode exige l'écriture sur la saison de destination ; une réorganisation laisse en place les éléments que l'utilisateur ne voit pas.
+
+## Phase 6 : personnages
+`src/lib/characters.ts` et `src/lib/images.ts`, routes `/api/characters*`, `/api/relations*`, `/api/images/:id`, `/api/storage` (administrateurs). Règle des apparitions : écriture sur l'une des deux fiches (personnage ou épisode, selon l'endroit où l'on agit) et lecture de l'autre. Pages `Characters.tsx` ; la fiche épisode affiche les personnages présents.

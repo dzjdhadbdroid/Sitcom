@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { EpisodeCharacters } from './Characters.tsx';
 import { api, apiError, CATEGORY_LABEL, episodeTitle, KIND_NAMES, STATUS_LABEL, STATUS_NAMES, type DocItem, type EpisodeDetail, type EpisodeKind, type EpisodeRow, type EpisodeStatus, type Me, type SeasonRow, type SeasonsData } from '../api.ts';
 
 type View = 'list' | 'cards';
@@ -279,6 +280,8 @@ export function EpisodePage({ id }: { id: string }) {
         {w && <div className="row"><button className="btn" type="submit">Enregistrer</button><button className="btn secondary" type="button" onClick={archive}>Archiver</button></div>}
         {!w && <p className="muted">Vous avez un accès en lecture seule à cet épisode.</p>}
       </form>
+
+      <EpisodeCharacters episodeId={id} present={ep.characters} canWrite={w} reload={load} setError={setError} />
 
       <section className="card" aria-labelledby="docs">
         <h2 id="docs">Documents associés</h2>

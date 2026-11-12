@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 — Phase 6 : personnages
+- Fiches personnages (prénom, nom, âge libre, description physique, personnalité, histoire, qualités, défauts, particularités), archivage, affichage liste ou galerie de portraits (choix mémorisé sur l'appareil).
+- Photos : réduites dans le navigateur (800 px, JPEG, moins de 1 Mo), stockées dans la base D1 (texte base64). Format vérifié par signature côté serveur (SVG et autres refusés), image servie seulement aux personnes qui peuvent lire la fiche. Une photo remplacée ou retirée n'est jamais effacée : elle est conservée et n'est plus affichée.
+- Stockage gratuit surveillé : avertissement à 350 Mo, refus des nouvelles images à 450 Mo (limite D1 : 500 Mo).
+- Relations entre personnages (famille, amitié, couple, collègues, rivalité, autre) avec description, visibles depuis les deux fiches, filtrées par permissions ; l'écriture est exigée sur les deux fiches.
+- Apparitions renseignées manuellement, depuis la fiche du personnage ou depuis l'épisode (section « Personnages présents ») ; aucune analyse des scénarios.
+- Tableau de bord : nombre réel de personnages visibles.
+- Migration `0005_characters.sql`, 11 nouveaux tests (87 au total), contrôle visuel 88/88.
+- Non implémenté : galerie de plusieurs images par personnage, lieux associés et documents associés aux personnages (phases 7 et 10), réorganisation manuelle de la liste (tri alphabétique pour l'instant), invitations par e-mail (évolution à part).
+
 ## 0.5.0 — Phase 5 : saisons et épisodes
 - Saisons : création vide ou avec N emplacements générés (0 à 60), numéro automatique modifiable, titre, résumé, marquage manuel « terminée », réorganisation (↑/↓), archivage.
 - Épisodes : numéro de référence (S01E01, S01SP01, HSBN01…), types (épisode, pilote, spécial, bonus, scène coupée, hors saison), statuts prédéfinis non personnalisables (Idée, En cours d'écriture, Terminé, Validé), durée, résumé, déplacement entre saisons. L'identité est un identifiant interne : changer un numéro ou réordonner ne touche à aucun document.

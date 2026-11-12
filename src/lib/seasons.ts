@@ -3,6 +3,7 @@ import { logStmt } from './audit.ts';
 import { nowIso, type DB, type Stmt } from './db.ts';
 import type { Result } from './invitations.ts';
 import { can, readableIds } from './permissions.ts';
+import { charactersOfEpisode } from './characters.ts';
 
 export const EPISODE_KINDS = ['regular', 'pilot', 'special', 'bonus', 'cut_scene'] as const;
 export const EPISODE_STATUSES = ['idea', 'writing', 'done', 'validated'] as const; // prédéfinis, non personnalisables
@@ -75,7 +76,7 @@ export async function listSeasons(db: DB, userId: string): Promise<{ seasons: Se
 export interface EpisodeDoc {
   id: string; title: string; category: string | null; status: string; statusDetail: string | null; isMain: boolean; viewable: boolean; modifiedTime: string | null;
 }
-export interface EpisodeDetail extends EpisodeRow { seasonTitle: string | null; seasonNumber: number | null; documents: EpisodeDoc[]; canWrite: boolean }
+export interface EpisodeDetail extends EpisodeRow { seasonTitle: string | null; seasonNumber: number | null; documents: EpisodeDoc[]; characters: { id: string; name: string; photoImageId: string | null }[]; canWrite: boolean }
 
 export async function getEpisode(db: DB, userId: string, id: string): Promise<EpisodeDetail | null> {
   if (!(await can(db, userId, 'read', id))) return null;
@@ -94,7 +95,7 @@ export async function getEpisode(db: DB, userId: string, id: string): Promise<Ep
   const ok = await readableIds(db, userId, results.map((r) => r.id));
   const documents = results.filter((r) => ok.has(r.id)).map(({ mimeType, isMain, ...r }) => ({ ...r, isMain: !!isMain, viewable: mimeType === 'application/vnd.google-apps.document' }));
   const base = toEpisode(row);
-  return { ...base, documentCount: documents.length, hasMainScript: documents.some((d) => d.isMain), seasonTitle: season?.title ?? null, seasonNumber: season?.number ?? null, documents, canWrite: await can(db, userId, 'write', id) };
+  return { ...base, documentCount: documents.length, hasMainScript: documents.some((d) => d.isMain), seasonTitle: season?.title ?? null, seasonNumber: season?.number ?? null, documents, characters: await charactersOfEpisode(db, userId, id), canWrite: await can(db, userId, 'write', id) };
 }
 
 // ---------- Saisons ----------

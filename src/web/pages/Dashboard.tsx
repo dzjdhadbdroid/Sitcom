@@ -58,7 +58,7 @@ export function Dashboard({ me, series }: { me: Me; series: Series }) {
         </section>
         <section className="card" aria-labelledby="d-chars">
           <h2 id="d-chars">Personnages</h2>
-          <Empty>Aucun personnage pour l'instant.</Empty>
+          {!data ? <p className="muted">Chargement…</p> : data.characters === 0 ? <Empty>Aucun personnage pour l'instant.</Empty> : <p className="big">{data.characters}<small> personnage{data.characters > 1 ? 's' : ''}</small></p>}
         </section>
         <section className="card" aria-labelledby="d-ideas">
           <h2 id="d-ideas">Idées en attente</h2>

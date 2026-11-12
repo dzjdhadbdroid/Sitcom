@@ -35,12 +35,19 @@ function server() {
       if (req.method === 'PUT') { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => { const p = JSON.parse(b); if (state.role === 'reader') return json(403, { erreur: 'forbidden' }); if (!p.title) return json(400, { erreur: 'invalid_title' }); Object.assign(state.series, p); json(200, { ok: true }); }); return; }
       return json(200, state.series);
     }
-    if (url.pathname === '/api/dashboard') return json(200, { members: { total: 3, admins: 1, editors: 1, readers: 1 }, recentActivity: state.role === 'admin' ? [{ id: 'a', action: 'series.updated', actorName: 'Utilisateur Test', createdAt: new Date().toISOString() }] : null, episodes: { total: 3, byStatus: { idea: 1, writing: 1, done: 1, validated: 0 } }, seasons: [{ id: 'sa1', number: 1, title: '', total: 3, completed: 1, finished: false }], recentDocuments: [{ id: 'doc1', title: 'Document fictif', category: 'script', modifiedTime: '2026-02-01T10:00:00.000Z', status: 'ok' }] });
+    if (url.pathname === '/api/dashboard') return json(200, { members: { total: 3, admins: 1, editors: 1, readers: 1 }, recentActivity: state.role === 'admin' ? [{ id: 'a', action: 'series.updated', actorName: 'Utilisateur Test', createdAt: new Date().toISOString() }] : null, episodes: { total: 3, byStatus: { idea: 1, writing: 1, done: 1, validated: 0 } }, seasons: [{ id: 'sa1', number: 1, title: '', total: 3, completed: 1, finished: false }], characters: 2, recentDocuments: [{ id: 'doc1', title: 'Document fictif', category: 'script', modifiedTime: '2026-02-01T10:00:00.000Z', status: 'ok' }] });
     if (url.pathname === '/api/admin/members') return json(200, [{ id: 'u1', email: 'test@example.test', name: 'Utilisateur Test', role: 'admin', isOwner: 1, joinedAt: '2026-01-01' }]);
     if (url.pathname === '/api/admin/invitations') return req.method === 'POST' ? json(200, { id: 'i', expiresAt: '2026-12-01', lien: 'https://exemple.test/api/auth/login?invite=JETON' }) : json(200, []);
     if (url.pathname === '/api/seasons' && req.method === 'GET') return json(state.role === 'none' ? 403 : 200, { seasons: state.seasons, loose: [] });
     if (url.pathname === '/api/seasons' && req.method === 'POST') { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => { if (state.role === 'reader') return json(403, { erreur: 'forbidden' }); const p = JSON.parse(b); const id = 'sa' + (state.seasons.length + 1); const n = state.seasons.length + 1; state.seasons.push({ id, number: n, title: p.title || '', summary: null, position: n, finishedAt: null, episodes: Array.from({ length: p.episodeCount || 0 }, (_, i) => ({ id: `${id}e${i + 1}`, seasonId: id, kind: 'regular', number: i + 1, code: `S0${n}E0${i + 1}`, title: '', summary: null, status: 'idea', durationMin: null, position: i + 1, documentCount: 0, hasMainScript: false })) }); json(201, { ok: true, id }); }); return; }
-    if (url.pathname === '/api/episodes/sa1e1') return json(200, { ...state.seasons[0].episodes[0], seasonTitle: null, seasonNumber: 1, canWrite: state.role !== 'reader', documents: [{ id: 'doc1', title: 'Document fictif', category: 'script', status: 'ok', statusDetail: null, isMain: true, viewable: true, modifiedTime: null }, { id: 'doc2', title: 'Document déplacé', category: 'notes', status: 'removed', statusDetail: 'x', isMain: false, viewable: true, modifiedTime: null }] });
+    if (url.pathname === '/api/episodes/sa1e1') return json(200, { ...state.seasons[0].episodes[0], characters: [{ id: 'ch1', name: 'Alice Fictive', photoImageId: 'img1' }], seasonTitle: null, seasonNumber: 1, canWrite: state.role !== 'reader', documents: [{ id: 'doc1', title: 'Document fictif', category: 'script', status: 'ok', statusDetail: null, isMain: true, viewable: true, modifiedTime: null }, { id: 'doc2', title: 'Document déplacé', category: 'notes', status: 'removed', statusDetail: 'x', isMain: false, viewable: true, modifiedTime: null }] });
+    if (url.pathname === '/api/characters' && req.method === 'GET') return json(200, [
+      { id: 'ch1', firstName: 'Alice', lastName: 'Fictive', name: 'Alice Fictive', age: '34 ans', photoImageId: 'img1', excerpt: 'Têtue mais loyale.', appearances: 1 },
+      { id: 'ch2', firstName: 'Bruno', lastName: '', name: 'Bruno', age: null, photoImageId: null, excerpt: null, appearances: 0 }]);
+    if (url.pathname === '/api/characters' && req.method === 'POST') return json(201, { ok: true, id: 'ch1' });
+    if (url.pathname === '/api/characters/ch1' && req.method === 'GET') return json(200, { id: 'ch1', firstName: 'Alice', lastName: 'Fictive', name: 'Alice Fictive', age: '34 ans', photoImageId: 'img1', physical: 'Grande.', personality: 'Têtue mais loyale.', history: null, qualities: 'Loyale', flaws: 'Têtue', particularities: null, relations: [{ id: 'r1', otherId: 'ch2', otherName: 'Bruno', otherPhotoImageId: null, kind: 'family', description: 'Frère' }], appearances: [{ episodeId: 'sa1e1', code: 'S01E01', title: 'Pilote fictif', seasonId: 'sa1' }], canWrite: state.role !== 'reader' });
+    if (url.pathname === '/api/characters/ch1/photo' && req.method === 'PUT') { const chunks = []; req.on('data', (d) => chunks.push(d)); req.on('end', () => { const b = Buffer.concat(chunks); state.upload = { size: b.length, type: req.headers['content-type'], jpeg: b[0] === 0xff && b[1] === 0xd8 }; json(200, { ok: true, imageId: 'img1' }); }); return; }
+    if (url.pathname === '/api/images/img1') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')); }
     if (url.pathname === '/api/documents') return json(200, [
       { id: 'doc1', driveFileId: 'x1', title: 'Document fictif', mimeType: 'application/vnd.google-apps.document', modifiedTime: '2026-02-01T10:00:00.000Z', webViewLink: null, state: 'imported', category: 'script', sectionId: 'section:documents', status: 'ok', statusDetail: null, viewable: true },
       { id: 'doc2', driveFileId: 'x2', title: 'Document déplacé', mimeType: 'application/vnd.google-apps.document', modifiedTime: null, webViewLink: null, state: 'imported', category: 'notes', sectionId: 'section:documents', status: 'removed', statusDetail: 'x', viewable: true }]);
@@ -255,6 +262,53 @@ const check = (name, ok, detail = '') => { results.push({ name, ok }); console.l
     await page.waitForSelector('#docs');
     check(`épisode ${size.width}px : pas de défilement horizontal`, (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0);
     if (size === sizes.mobile) await page.screenshot({ path: path.join(out, 'episode-mobile.png'), fullPage: true });
+  }
+
+  // Personnages
+  await page.setViewportSize(sizes.bureau);
+  await page.goto(`${base}/#/personnages`);
+  await page.reload();
+  await page.waitForSelector('.char-list');
+  let ct = await page.locator('main').innerText();
+  check('personnages : liste avec âge et nombre d’apparitions', ct.includes('Alice Fictive') && ct.includes('34 ans') && ct.includes('1 apparition') && ct.includes('Bruno'));
+  check('personnages : initiale affichée sans photo', (await page.locator('.avatar.ph').count()) === 1);
+  await page.getByRole('button', { name: 'Galerie' }).click();
+  await page.waitForSelector('.char-card');
+  check('personnages : bascule en galerie', (await page.locator('.char-card').count()) === 2);
+  await page.screenshot({ path: path.join(out, 'personnages-galerie.png'), fullPage: true });
+  await page.goto(`${base}/#/personnages/ch1`);
+  await page.waitForSelector('#rel');
+  ct = await page.locator('main').innerText();
+  check('fiche : relation visible avec lien et type', ct.includes('Bruno') && ct.includes('Famille') && ct.includes('Frère'));
+  check('fiche : épisode d’apparition avec code', ct.includes('S01E01') && ct.includes('Pilote fictif'));
+  // envoi d'une très grande photo : réduite par le navigateur avant l'envoi
+  await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 4000; c.height = 3000; const x = c.getContext('2d'); for (let i = 0; i < 400; i++) { x.fillStyle = `hsl(${i * 7},70%,50%)`; x.fillRect((i * 37) % 4000, (i * 53) % 3000, 300, 300); } c.toBlob((b) => { window.__big = b; }, 'image/png'); });
+  await page.waitForFunction(() => window.__big);
+  const bytes = await page.evaluate(async () => Array.from(new Uint8Array(await window.__big.arrayBuffer())));
+  await page.setInputFiles('input[type=file]', { name: 'grande.png', mimeType: 'image/png', buffer: Buffer.from(bytes) });
+  await page.waitForFunction(() => true);
+  for (let i = 0; i < 50 && !state.upload; i++) await page.waitForTimeout(100);
+  check('photo : réduite en JPEG de moins de 1 Mo avant l’envoi', !!state.upload && state.upload.jpeg && state.upload.size < 1_000_000 && state.upload.type === 'image/jpeg', JSON.stringify(state.upload));
+  await page.screenshot({ path: path.join(out, 'fiche-personnage.png'), fullPage: true });
+  await page.goto(`${base}/#/saisons/e/sa1e1`);
+  await page.waitForSelector('#chars');
+  check('épisode : personnages présents affichés', (await page.locator('#chars').locator('xpath=ancestor::section').innerText()).includes('Alice Fictive'));
+  state.role = 'reader';
+  await page.goto(`${base}/#/personnages/ch1`);
+  await page.reload();
+  await page.waitForSelector('#rel');
+  check('lecteur : fiche personnage en lecture seule, sans bouton de photo', (await page.getByRole('button', { name: /Ajouter une photo|Changer la photo|Enregistrer|Archiver|Retirer/ }).count()) === 0 && (await page.locator('fieldset[disabled]').count()) === 1);
+  state.role = 'admin';
+  await page.reload();
+  for (const size of [sizes.mobile, sizes.tablette]) {
+    await page.setViewportSize(size);
+    for (const r of ['personnages', 'personnages/ch1']) {
+      await page.goto(`${base}/#/${r}`);
+      await page.waitForSelector('main#contenu h1');
+      await page.waitForTimeout(150);
+      check(`${r} ${size.width}px : pas de défilement horizontal`, (await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0);
+    }
+    if (size === sizes.mobile) await page.screenshot({ path: path.join(out, 'fiche-personnage-mobile.png'), fullPage: true });
   }
 
   await browser.close();

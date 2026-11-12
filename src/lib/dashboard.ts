@@ -1,6 +1,7 @@
 import type { DB } from './db.ts';
 import { can, readableIds } from './permissions.ts';
 import { listSeasons } from './seasons.ts';
+import { listCharacters } from './characters.ts';
 
 export interface DashboardData {
   members: { total: number; admins: number; editors: number; readers: number };
@@ -11,6 +12,8 @@ export interface DashboardData {
   episodes: { total: number; byStatus: Record<'idea' | 'writing' | 'done' | 'validated', number> };
   /** Avancement par saison : part des épisodes « Terminé » ou « Validé ». */
   seasons: { id: string; number: number | null; title: string; total: number; completed: number; finished: boolean }[];
+  /** Nombre de personnages visibles par l'utilisateur. */
+  characters: number;
   recentDocuments: { id: string; title: string; category: string | null; modifiedTime: string | null; status: string }[];
 }
 
@@ -61,5 +64,7 @@ export async function getDashboard(db: DB, userId: string): Promise<DashboardDat
     completed: x.episodes.filter((e) => e.status === 'done' || e.status === 'validated').length, finished: x.finishedAt !== null,
   }));
 
-  return { episodes: { total: eps.length, byStatus }, seasons, members: counts ?? { total: 0, admins: 0, editors: 0, readers: 0 }, recentActivity, recentDocuments };
+  const characters = (await listCharacters(db, userId))?.length ?? 0;
+
+  return { characters, episodes: { total: eps.length, byStatus }, seasons, members: counts ?? { total: 0, admins: 0, editors: 0, readers: 0 }, recentActivity, recentDocuments };
 }

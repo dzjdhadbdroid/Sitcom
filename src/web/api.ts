@@ -9,6 +9,7 @@ export interface Dashboard {
   recentActivity: { id: string; action: string; actorName: string | null; createdAt: string }[] | null;
   episodes: { total: number; byStatus: Record<EpisodeStatus, number> };
   seasons: { id: string; number: number | null; title: string; total: number; completed: number; finished: boolean }[];
+  characters: number;
   recentDocuments: { id: string; title: string; category: string | null; modifiedTime: string | null; status: string }[];
 }
 export interface DriveStatus {
@@ -60,6 +61,10 @@ export const API_ERRORS: Record<string, string> = {
   invalid_summary: 'Texte trop long (5 000 caractères maximum).', invalid_number: 'Numéro invalide.', invalid_episode_count: 'Le nombre d’épisodes doit être compris entre 0 et 60.',
   invalid_kind: 'Type invalide.', invalid_status: 'Statut invalide.', invalid_duration: 'La durée doit être comprise entre 1 et 600 minutes.',
   season_not_found: 'Saison introuvable.', invalid_order: 'Ordre invalide : rechargez la page.', not_found: 'Élément introuvable ou déjà archivé.',
+  name_required: 'Indiquez au moins un prénom ou un nom.', invalid_name: 'Nom trop long (100 caractères maximum).', invalid_age: 'Âge trop long (40 caractères maximum).',
+  invalid_text: 'Texte trop long.', same_character: 'Choisissez deux personnages différents.', already_exists: 'Cela existe déjà.',
+  invalid_image: 'Image invalide : formats acceptés JPEG, PNG ou WebP.', image_too_large: 'Image trop lourde (1 Mo maximum après réduction).',
+  storage_full: 'Le stockage gratuit des images est presque plein : aucune nouvelle image ne peut être ajoutée. Contactez l’administrateur.',
   nothing_to_update: 'Aucune modification à enregistrer.',
   erreur_interne: 'Une erreur est survenue. Réessayez dans un instant.',
 };
@@ -78,6 +83,9 @@ const ACTION_LABEL: Record<string, string> = {
   'episode.created': 'Épisode créé', 'episode.updated': 'Épisode modifié', 'episode.reordered': 'Épisodes réorganisés', 'episode.archived': 'Épisode archivé',
   'episode.document_linked': 'Document associé à un épisode', 'episode.document_unlinked': 'Document détaché d’un épisode', 'episode.main_script_changed': 'Scénario principal modifié',
   'document.imported': 'Document importé', 'document.reclassified': 'Document reclassé',
+  'character.created': 'Personnage créé', 'character.updated': 'Personnage modifié', 'character.archived': 'Personnage archivé', 'character.photo_changed': 'Photo de personnage modifiée',
+  'character.relation_added': 'Relation ajoutée', 'character.relation_updated': 'Relation modifiée', 'character.relation_removed': 'Relation retirée',
+  'character.appearance_added': 'Apparition ajoutée', 'character.appearance_removed': 'Apparition retirée',
   'drive.connected': 'Google Drive connecté', 'drive.disconnected': 'Google Drive déconnecté', 'drive.reauth_required': 'Reconnexion Google Drive requise',
 };
 export const actionLabel = (a: string) => ACTION_LABEL[a] ?? a;
@@ -93,5 +101,17 @@ export interface EpisodeRow {
 export interface SeasonRow { id: string; number: number | null; title: string; summary: string | null; position: number; finishedAt: string | null; episodes: EpisodeRow[] }
 export interface SeasonsData { seasons: SeasonRow[]; loose: EpisodeRow[] }
 export interface EpisodeDoc { id: string; title: string; category: string | null; status: string; statusDetail: string | null; isMain: boolean; viewable: boolean; modifiedTime: string | null }
-export interface EpisodeDetail extends EpisodeRow { seasonTitle: string | null; seasonNumber: number | null; documents: EpisodeDoc[]; canWrite: boolean }
+export interface EpisodeDetail extends EpisodeRow { characters: { id: string; name: string; photoImageId: string | null }[]; seasonTitle: string | null; seasonNumber: number | null; documents: EpisodeDoc[]; canWrite: boolean }
 export const episodeTitle = (e: { title: string }) => e.title || 'Sans titre';
+
+export type RelationKind = 'family' | 'friendship' | 'couple' | 'colleagues' | 'rivalry' | 'other';
+export const RELATION_NAMES: Record<RelationKind, string> = { family: 'Famille', friendship: 'Amitié', couple: 'Couple', colleagues: 'Collègues', rivalry: 'Rivalité', other: 'Autre' };
+export interface CharacterCard { id: string; firstName: string; lastName: string; name: string; age: string | null; photoImageId: string | null; excerpt: string | null; appearances: number }
+export interface CharacterDetail {
+  id: string; firstName: string; lastName: string; name: string; age: string | null; photoImageId: string | null;
+  physical: string | null; personality: string | null; history: string | null; qualities: string | null; flaws: string | null; particularities: string | null;
+  relations: { id: string; otherId: string; otherName: string; otherPhotoImageId: string | null; kind: RelationKind; description: string | null }[];
+  appearances: { episodeId: string; code: string; title: string; seasonId: string | null }[];
+  canWrite: boolean;
+}
+export const imageUrl = (id: string) => `/api/images/${id}`;

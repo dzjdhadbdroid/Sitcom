@@ -30,6 +30,12 @@ Contrôle de l'en-tête `Origin` sur toute requête modifiante (CSRF), en-têtes
 - Lecteur : le HTML de Google Docs est assaini côté navigateur par **liste blanche** (balises et attributs autorisés ; scripts, styles, iframes, formulaires, SVG, gestionnaires d'événements, liens non `https`, images hors `*.googleusercontent.com` supprimés), puis affiché dans la page avec la CSP stricte (`script-src 'self'`). Vérifié sur un HTML piégé fictif.
 - Listes de documents filtrées côté serveur par `readableIds()` (même règle que `can()`).
 
+## Images (phase 6)
+- Format détecté par signature (JPEG, PNG, WebP uniquement) : le type annoncé par le navigateur n'est pas cru ; SVG et HTML refusés (pas de script dans une image). Taille limitée à 1 Mo.
+- Une image est servie par `/api/images/:id` avec les droits de lecture de sa fiche (sinon 404), `nosniff`, `Content-Security-Policy: default-src 'none'`, cache privé uniquement.
+- Quota : avertissement à 350 Mo, refus à 450 Mo pour ne jamais approcher la limite gratuite de 500 Mo.
+- Les relations et apparitions n'exposent jamais un personnage ou un épisode que l'utilisateur n'a pas le droit de lire.
+
 ## Limites connues (à traiter avant la finalisation)
 - **Limitation de débit non implémentée** : l'exigence « limiter les requêtes abusives » reste à faire (prévue en phase 14 au plus tard, via des règles Cloudflare gratuites ou un compteur en base).
 - Le contrôle de la signature du jeton d'identité n'est pas fait : il est obtenu directement de Google en HTTPS, ce que la documentation Google autorise, et ses revendications (émetteur, audience, expiration) sont vérifiées.

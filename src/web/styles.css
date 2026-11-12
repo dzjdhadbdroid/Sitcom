@@ -183,3 +183,20 @@ button.link:disabled { color: var(--text); cursor: default; font-weight: 600; }
 fieldset { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
 progress { width: 100%; height: 10px; accent-color: var(--accent); }
 .badge { margin-left: 6px; }
+
+/* Phase 6 : personnages */
+.avatar { border-radius: 50%; object-fit: cover; flex: none; background: var(--accent-soft); }
+.avatar.ph { display: inline-flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent); }
+.head-char { gap: 16px; margin-bottom: 8px; flex-wrap: nowrap; }
+.head-char h1 { margin: 0; }
+.char-list { list-style: none; margin: 0 0 16px; padding: 4px 20px; }
+.char-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.char-list li:last-child { border-bottom: 0; }
+.char-list a { color: var(--text); text-decoration: none; margin: 0; flex-wrap: nowrap; }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.char-card { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; margin: 0; color: var(--text); text-decoration: none; }
+.char-card:hover { border-color: var(--accent); }
+.char-card .avatar { width: 140px; height: 140px; }
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 12px; }
+.chips li { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 4px; }
+.chips a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); text-decoration: none; }

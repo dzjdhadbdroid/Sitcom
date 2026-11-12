@@ -15,6 +15,8 @@ import {
   refreshAvailable, removeSyncFolder, syncAll, syncConnection, syncIfStale,
 } from '../lib/drive-sync.ts';
 import { can } from '../lib/permissions.ts';
+import { addAppearance, addRelation, archiveCharacter, createCharacter, getCharacter, listCharacters, removeAppearance, removeCharacterPhoto, removeRelation, setCharacterPhoto, updateCharacter, updateRelation } from '../lib/characters.ts';
+import { getImage, imageUsage, MAX_IMAGE_BYTES } from '../lib/images.ts';
 import { archive, createEpisode, createSeason, getEpisode, linkDocument, listSeasons, reorderEpisodes, reorderSeasons, setMainDocument, unlinkDocument, updateEpisode, updateSeason } from '../lib/seasons.ts';
 
 interface Env {
@@ -42,7 +44,7 @@ app.use('*', async (c, next) => {
   c.header('Referrer-Policy', 'same-origin');
   c.header('X-Frame-Options', 'DENY');
   c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  c.header('Cache-Control', 'no-store');
+  if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store');
 });
 
 // Protection CSRF : toute requête qui modifie des données doit venir de notre propre origine.
@@ -166,7 +168,7 @@ app.get('/api/dashboard', async (c) => {
   return d ? c.json(d) : c.json({ erreur: 'forbidden' }, 403);
 });
 
-const status = (reason: string) => (reason === 'forbidden' ? 403 : reason === 'not_found' ? 404 : 400);
+const status = (reason: string) => (reason === 'forbidden' ? 403 : reason === 'not_found' ? 404 : reason === 'already_exists' || reason === 'storage_full' ? 409 : 400);
 
 app.get('/api/admin/invitations', async (c) => {
   const list = await listPendingInvitations(db(c.env), c.get('user').userId);
@@ -272,6 +274,73 @@ app.put('/api/episodes/:id/main-document', async (c) => {
 });
 app.delete('/api/episodes/:id/documents/:docId', async (c) => {
   const r = await unlinkDocument(db(c.env), c.get('user').userId, c.req.param('id'), c.req.param('docId'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+
+// ---------- Personnages et images ----------
+app.get('/api/characters', async (c) => {
+  const r = await listCharacters(db(c.env), c.get('user').userId);
+  return r ? c.json(r) : c.json({ erreur: 'forbidden' }, 403);
+});
+app.post('/api/characters', async (c) => {
+  const r = await createCharacter(db(c.env), c.get('user').userId, await body(c));
+  return r.ok ? c.json(r, 201) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.get('/api/characters/:id', async (c) => {
+  const r = await getCharacter(db(c.env), c.get('user').userId, c.req.param('id'));
+  return r ? c.json(r) : c.json({ erreur: 'forbidden' }, 403);
+});
+app.patch('/api/characters/:id', async (c) => {
+  const r = await updateCharacter(db(c.env), c.get('user').userId, c.req.param('id'), await body(c));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.delete('/api/characters/:id', async (c) => {
+  const r = await archiveCharacter(db(c.env), c.get('user').userId, c.req.param('id'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+/** Envoi de la photo : corps binaire brut (déjà réduit par le navigateur). Format vérifié par signature côté serveur. */
+app.put('/api/characters/:id/photo', async (c) => {
+  const declared = Number(c.req.header('Content-Length') ?? 0);
+  if (declared > MAX_IMAGE_BYTES + 1024) return c.json({ erreur: 'image_too_large' }, 413);
+  const bytes = new Uint8Array(await c.req.arrayBuffer());
+  const r = await setCharacterPhoto(db(c.env), c.get('user').userId, c.req.param('id'), bytes);
+  return r.ok ? c.json(r) : c.json({ erreur: r.reason }, r.reason === 'image_too_large' ? 413 : status(r.reason));
+});
+app.delete('/api/characters/:id/photo', async (c) => {
+  const r = await removeCharacterPhoto(db(c.env), c.get('user').userId, c.req.param('id'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.get('/api/images/:id', async (c) => {
+  const img = await getImage(db(c.env), c.get('user').userId, c.req.param('id'));
+  if (!img) return c.json({ erreur: 'introuvable' }, 404);
+  return new Response(img.bytes, { headers: {
+    'Content-Type': img.mime, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'", 'Content-Disposition': 'inline',
+  } });
+});
+app.get('/api/storage', async (c) => {
+  if (c.get('user').role !== 'admin') return c.json({ erreur: 'forbidden' }, 403);
+  return c.json(await imageUsage(db(c.env)));
+});
+app.post('/api/characters/:id/relations', async (c) => {
+  const b = await body<{ otherId?: string; kind?: string; description?: string }>(c);
+  const r = await addRelation(db(c.env), c.get('user').userId, c.req.param('id'), String(b.otherId ?? ''), b.kind, b.description);
+  return r.ok ? c.json(r, 201) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.patch('/api/relations/:id', async (c) => {
+  const r = await updateRelation(db(c.env), c.get('user').userId, c.req.param('id'), await body(c));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.delete('/api/relations/:id', async (c) => {
+  const r = await removeRelation(db(c.env), c.get('user').userId, c.req.param('id'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.put('/api/characters/:id/appearances/:episodeId', async (c) => {
+  const r = await addAppearance(db(c.env), c.get('user').userId, c.req.param('id'), c.req.param('episodeId'));
+  return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
+});
+app.delete('/api/characters/:id/appearances/:episodeId', async (c) => {
+  const r = await removeAppearance(db(c.env), c.get('user').userId, c.req.param('id'), c.req.param('episodeId'));
   return r.ok ? c.json({ ok: true }) : c.json({ erreur: r.reason }, status(r.reason));
 });
 

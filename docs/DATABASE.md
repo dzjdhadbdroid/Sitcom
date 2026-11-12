@@ -28,3 +28,7 @@ Colonnes ajoutées à `series` : `genre`, `format`, `summary`, `planned_seasons`
 - `seasons` (numéro affiché modifiable et non unique, position, `finished_at` manuel) et `episodes` (`season_id` nul = hors saison, `kind`, `number`, `status` ∈ idée/écriture/terminé/validé, durée, position). Chacun possède une ligne `resources` de même identifiant (permissions hiérarchiques : épisode → saison → rubrique).
 - `episode_documents` : liens épisode ↔ document importé ; index unique partiel garantissant au plus un scénario principal par épisode.
 - L'archivage pose `resources.archived_at` ; rien n'est supprimé.
+
+## Phase 6 : migration `0005_characters.sql`
+- `images` : une ligne par image (propriétaire = fiche, type MIME contrôlé, taille, contenu en base64 texte). Le texte base64 est utilisé plutôt qu'un BLOB pour une compatibilité identique entre D1 et les tests ; limite 1 Mo par image (la ligne D1 est limitée à 2 Mo). `replaced_at` marque une image remplacée : conservée, jamais servie.
+- `characters` (une ligne `resources` de type `item` sous `section:characters`), `character_relations` (deux personnages, type prédéfini, description), `character_appearances` (liens manuels personnage ↔ épisode).
